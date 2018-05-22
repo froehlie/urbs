@@ -1,6 +1,5 @@
 import pandas as pd
-
-
+import urbs
 def annuity_factor(n, i):
     """Annuity factor formula.
 
@@ -41,7 +40,11 @@ def commodity_balance(m, tm, sit, com):
         balance: net value of consumed (positive) or provided (negative) power
 
     """
-    balance = (sum(m.e_pro_in[(tm, site, process, com)]
+    #count sites 
+    site_count = m.site.size
+	
+    if site_count > 1:
+        balance = (sum(m.e_pro_in[(tm, site, process, com)]
                    # usage as input for process increases balance
                    for site, process in m.pro_tuples
                    if site == sit and (process, com) in m.r_in_dict)
@@ -65,7 +68,25 @@ def commodity_balance(m, tm, sit, com):
                      # output from storage decreases consumption
                      for site, storage, commodity in m.sto_tuples
                      if site == sit and commodity == com))
-    return balance
+        return balance
+    else:
+        balance = (sum(m.e_pro_in[(tm, site, process, com)]
+                   # usage as input for process increases balance
+                   for site, process in m.pro_tuples
+                   if site == sit and (process, com) in m.r_in_dict)
+               - sum(m.e_pro_out[(tm, site, process, com)]
+                     # output from processes decreases balance
+                     for site, process in m.pro_tuples
+                     if site == sit and (process, com) in m.r_out_dict)
+               + sum(m.e_sto_in[(tm, site, storage, com)] -
+                     m.e_sto_out[(tm, site, storage, com)]
+                     # usage as input for storage increases consumption
+                     # output from storage decreases consumption
+                     for site, storage, commodity in m.sto_tuples
+                     if site == sit and commodity == com))
+        return balance
+
+    
 
 
 def dsm_down_time_tuples(time, sit_com_tuple, m):
