@@ -17,14 +17,14 @@ def scenario_stock_prices(data):
     # change stock commodity prices
     co = data['commodity']
     stock_commodities_only = (co.index.get_level_values('Type') == 'Stock')
-    co.loc[stock_commodities_only, 'price'] *= 1.5
+    co.loc[stock_commodities_only, 'price'] *= 2.0
     return data
 
 
 def scenario_co2_limit(data):
     # change global CO2 limit
     global_prop = data['global_prop']
-    global_prop.loc['CO2 limit', 'value'] *= 0.05
+    global_prop.loc['CO2 limit', 'value'] *= 0.2
     return data
 
 
@@ -35,12 +35,12 @@ def scenario_co2_tax_mid(data):
     return data
 
 
-def scenario_north_process_caps(data):
+"""def scenario_north_process_caps(data):                       scenario north pro caps is OFF
     # change maximum installable capacity
     pro = data['process']
-    pro.loc[('North', 'Hydro plant'), 'cap-up'] *= 0.5
-    pro.loc[('North', 'Biomass plant'), 'cap-up'] *= 0.25
-    return data
+    pro.loc[('North', 'Hydro plant'), 'cap-up'] *= 0.2
+    pro.loc[('North', 'Biomass plant'), 'cap-up'] *= 0.1
+    return data"""
 
 
 def scenario_no_dsm(data):
@@ -53,7 +53,7 @@ def scenario_all_together(data):
     # combine all other scenarios
     data = scenario_stock_prices(data)
     data = scenario_co2_limit(data)
-    data = scenario_north_process_caps(data)
+    # data = scenario_north_process_caps(data)                                      !!
     return data
 
 
@@ -110,14 +110,22 @@ def run_scenario(input_file, timesteps, scenario, result_dir,
         the urbs model instance
     """
 
+    #start time for measuring runtime
+    scenario_start = datetime.now()
+
     # scenario name, read and modify data for scenario
     sce = scenario.__name__
     data = urbs.read_excel(input_file)
     data = scenario(data)
     urbs.validate_input(data)
 
+    print("\nTime to read input file: ", datetime.now() - scenario_start)
+    
     # create model
     prob = urbs.create_model(data, timesteps)
+    #prob.write('model.lp', io_options={‘symbolic_solver_labels’:True})
+
+    print("Time to create model: ", datetime.now() - scenario_start,"\n")
 
     # refresh time stamp string and create filename for logfile
     now = prob.created
@@ -131,12 +139,13 @@ def run_scenario(input_file, timesteps, scenario, result_dir,
     # save problem solution (and input data) to HDF5 file
     urbs.save(prob, os.path.join(result_dir, '{}.h5'.format(sce)))
 
-    # write report to spreadsheet
+    
+    """# write report to spreadsheet                                        report is OFF!                           
     urbs.report(
         prob,
         os.path.join(result_dir, '{}.xlsx').format(sce),
         report_tuples=report_tuples,
-        report_sites_name=report_sites_name)
+        report_sites_name=report_sites_name)"""
 
     # result plots
     urbs.result_figures(
@@ -149,6 +158,9 @@ def run_scenario(input_file, timesteps, scenario, result_dir,
         figure_size=(24, 9))
     return prob
 
+#start time for measuring total runtime
+start_time = datetime.now()
+
 if __name__ == '__main__':
     input_file = 'mimo-example.xlsx'
     result_name = os.path.splitext(input_file)[0]  # cut away file extension
@@ -160,7 +172,7 @@ if __name__ == '__main__':
     shutil.copy(__file__, result_dir)
 
     # simulation timesteps
-    (offset, length) = (3500, 168)  # time step selection
+    (offset, length) = (3500, 200)  # time step selection                           ##### length war 168
     timesteps = range(offset, offset+length+1)
 
     # plotting commodities/sites
@@ -201,7 +213,7 @@ if __name__ == '__main__':
         scenario_co2_limit,
         scenario_co2_tax_mid,
         scenario_no_dsm,
-        scenario_north_process_caps,
+        # scenario_north_process_caps,                                                  !!
         scenario_all_together]
 
     for scenario in scenarios:
@@ -211,3 +223,6 @@ if __name__ == '__main__':
                             plot_periods=plot_periods,
                             report_tuples=report_tuples,
                             report_sites_name=report_sites_name)
+
+#stop time for measuring total runtime                       
+print("Total runtime: ", datetime.now() - start_time)

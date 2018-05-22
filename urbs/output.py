@@ -31,9 +31,15 @@ def get_constants(instance):
         South        0
         Name: Total, dtype: int64
     """
+    #count sites
+    site_count = instance.site.size
+    
     costs = get_entity(instance, 'costs')
     cpro = get_entities(instance, ['cap_pro', 'cap_pro_new'])
-    ctra = get_entities(instance, ['cap_tra', 'cap_tra_new'])
+    if site_count >1:
+        ctra = get_entities(instance, ['cap_tra', 'cap_tra_new'])
+    else:
+        ctra =pd.Series()
     csto = get_entities(instance, ['cap_sto_c', 'cap_sto_c_new',
                                    'cap_sto_p', 'cap_sto_p_new'])
 
