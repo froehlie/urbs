@@ -172,7 +172,7 @@ if __name__ == '__main__':
     shutil.copy(__file__, result_dir)
 
     # simulation timesteps
-    (offset, length) = (3500, 200)  # time step selection                           ##### length war 168
+    (offset, length) = (3500, 500)  # time step selection                           ##### length war 168
     timesteps = range(offset, offset+length+1)
 
     # plotting commodities/sites
