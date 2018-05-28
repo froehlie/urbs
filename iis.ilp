@@ -1,0 +1,9 @@
+\ Model obj_copy
+\ LP format - for model browsing. Use MPS format to capture full model detail.
+Minimize
+ 
+Subject To
+ c_e_res_process_capacity_const_cap(Mid_Slack_powerplant)_:
+   = 9.99997000002e+011
+Bounds
+End

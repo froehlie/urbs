@@ -1,7 +1,7 @@
 import pandas as pd
 from xlrd import XLRDError
 import pyomo.core as pyomo
-from .modelhelper import *
+from .constraints.modelhelper import *
 
 
 def read_excel(filename):
