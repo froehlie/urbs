@@ -20,9 +20,7 @@ def def_costs_rule(m, cost_type):
       - Variables costs for usage of processes, storage and transmission.
       - Fuel costs for stock commodity purchase.
 
-    """
-    #count sites                                                                ###################
-    site_count = m.site.size                                        
+    """                                   
     
     if cost_type == 'Invest':
         if not m.transmission.empty:
@@ -34,27 +32,55 @@ def def_costs_rule(m, cost_type):
 				sum(m.cap_tra_new[t] *
 					m.transmission_dict['inv-cost'][t] *
 					m.transmission_dict['annuity-factor'][t]
-					for t in m.tra_tuples) + \
+					for t in m.tra_tuples_expansion) + \
 				sum(m.cap_sto_p_new[s] *
 					m.storage_dict['inv-cost-p'][s] *
 					m.storage_dict['annuity-factor'][s] +
 					m.cap_sto_c_new[s] *
 					m.storage_dict['inv-cost-c'][s] *
 					m.storage_dict['annuity-factor'][s]
-					for s in m.sto_tuples)
+					for s in m.sto_tuples_c_expansion and m.sto_tuples_p_expansion) +\
+				sum(m.cap_sto_p_new[s] *
+					m.storage_dict['inv-cost-p'][s] *
+					m.storage_dict['annuity-factor'][s] +
+					m.storage_dict['inst-cap-c'][(s)] *
+					m.storage_dict['inv-cost-c'][s] *
+					m.storage_dict['annuity-factor'][s]
+					for s in m.sto_tuples_p_expansion-m.sto_tuples_c_expansion) +\
+				sum(m.storage_dict['inst-cap-p'][(s)] *
+					m.storage_dict['inv-cost-p'][s] *
+					m.storage_dict['annuity-factor'][s] +
+					m.cap_sto_c_new[s] *
+					m.storage_dict['inv-cost-c'][s] *
+					m.storage_dict['annuity-factor'][s]
+					for s in m.sto_tuples_c_expansion-m.sto_tuples_p_expansion)                   
         else:
             return m.costs[cost_type] == \
-                    sum(m.cap_pro_new[p] *
+                sum(m.cap_pro_new[p] *
                         m.process_dict['inv-cost'][p] *
                         m.process_dict['annuity-factor'][p]
                         for p in m.pro_tuples_expansion) + \
-                    sum(m.cap_sto_p_new[s] *
-                        m.storage_dict['inv-cost-p'][s] *
-                        m.storage_dict['annuity-factor'][s] +
-                        m.cap_sto_c_new[s] *
-                        m.storage_dict['inv-cost-c'][s] *
-                        m.storage_dict['annuity-factor'][s]
-                        for s in m.sto_tuples)
+				sum(m.cap_sto_p_new[s] *
+					m.storage_dict['inv-cost-p'][s] *
+					m.storage_dict['annuity-factor'][s] +
+					m.cap_sto_c_new[s] *
+					m.storage_dict['inv-cost-c'][s] *
+					m.storage_dict['annuity-factor'][s]
+					for s in m.sto_tuples_c_expansion and m.sto_tuples_p_expansion) +\
+				sum(m.cap_sto_p_new[s] *
+					m.storage_dict['inv-cost-p'][s] *
+					m.storage_dict['annuity-factor'][s] +
+					m.storage_dict['inst-cap-c'][(s)] *
+					m.storage_dict['inv-cost-c'][s] *
+					m.storage_dict['annuity-factor'][s]
+					for s in m.sto_tuples_p_expansion-m.sto_tuples_c_expansion) +\
+				sum(m.storage_dict['inst-cap-p'][(s)] *
+					m.storage_dict['inv-cost-p'][s] *
+					m.storage_dict['annuity-factor'][s] +
+					m.cap_sto_c_new[s] *
+					m.storage_dict['inv-cost-c'][s] *
+					m.storage_dict['annuity-factor'][s]
+					for s in m.sto_tuples_c_expansion-m.sto_tuples_p_expansion)  
 
     elif cost_type == 'Fixed':
         if not m.transmission.empty:
@@ -67,16 +93,34 @@ def def_costs_rule(m, cost_type):
                         for t in m.tra_tuples) + \
                     sum(m.cap_sto_p[s] * m.storage_dict['fix-cost-p'][s] +
                         m.cap_sto_c[s] * m.storage_dict['fix-cost-c'][s]
-                        for s in m.sto_tuples)
-        else:
+                        for s in m.sto_tuples_p_expansion and m.sto_tuples_c_expansion) + \
+                    sum(m.cap_sto_p[s] * m.storage_dict['fix-cost-p'][s] +
+                        m.storage_dict['inst-cap-c'][(s)] * m.storage_dict['fix-cost-c'][s]
+                        for s in m.sto_tuples_p_expansion-m.sto_tuples_c_expansion) + \
+                    sum(m.storage_dict['inst-cap-p'][(s)] * m.storage_dict['fix-cost-p'][s] +
+                        m.cap_sto_c[s] * m.storage_dict['fix-cost-c'][s]
+                        for s in m.sto_tuples_c_expansion-m.sto_tuples_p_expansion) + \
+                    sum(m.storage_dict['inst-cap-p'][(s)] * m.storage_dict['fix-cost-p'][s] +
+                        m.storage_dict['inst-cap-c'][(s)] * m.storage_dict['fix-cost-c'][s]
+                        for s in m.sto_tuples-m.sto_tuples_c_expansion-m.sto_tuples_p_expansion)
+        else:                                                                   ###
             return m.costs[cost_type] == \
                     sum(m.cap_pro[p] * m.process_dict['fix-cost'][p]
-                        for p in m.pro_tuples) + \
+                        for p in m.pro_tuples_expansion) + \
                     sum(m.process_dict['inst-cap'][(p)] * m.process_dict['fix-cost'][p]
                         for p in m.pro_tuples-m.pro_tuples_expansion) + \
                     sum(m.cap_sto_p[s] * m.storage_dict['fix-cost-p'][s] +
                         m.cap_sto_c[s] * m.storage_dict['fix-cost-c'][s]
-                        for s in m.sto_tuples)
+                        for s in m.sto_tuples_p_expansion and m.sto_tuples_c_expansion) + \
+                    sum(m.cap_sto_p[s] * m.storage_dict['fix-cost-p'][s] +
+                        m.storage_dict['inst-cap-c'][(s)] * m.storage_dict['fix-cost-c'][s]
+                        for s in m.sto_tuples_p_expansion-m.sto_tuples_c_expansion) + \
+                    sum(m.storage_dict['inst-cap-p'][(s)] * m.storage_dict['fix-cost-p'][s] +
+                        m.cap_sto_c[s] * m.storage_dict['fix-cost-c'][s]
+                        for s in m.sto_tuples_c_expansion-m.sto_tuples_p_expansion) + \
+                    sum(m.storage_dict['inst-cap-p'][(s)] * m.storage_dict['fix-cost-p'][s] +
+                        m.storage_dict['inst-cap-c'][(s)] * m.storage_dict['fix-cost-c'][s]
+                        for s in m.sto_tuples-m.sto_tuples_c_expansion-m.sto_tuples_p_expansion)  
 
     elif cost_type == 'Variable':
         if not m.transmission.empty:

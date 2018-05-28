@@ -40,10 +40,8 @@ def commodity_balance(m, tm, sit, com):
         balance: net value of consumed (positive) or provided (negative) power
 
     """
-    #count sites 
-    site_count = m.site.size
 	
-    if site_count > 1:
+    if not m.transmission.empty:
         balance = (sum(m.e_pro_in[(tm, site, process, com)]
                    # usage as input for process increases balance
                    for site, process in m.pro_tuples

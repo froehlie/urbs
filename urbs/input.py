@@ -35,10 +35,13 @@ def read_excel(filename):
         process_commodity = (
             xls.parse('Process-Commodity')
                .set_index(['Process', 'Commodity', 'Direction']))
-        transmission = (
-            xls.parse('Transmission')
-               .set_index(['Site In', 'Site Out',
+        if 'Transmission' in xls.sheet_names:
+            transmission = (
+                xls.parse('Transmission')
+                   .set_index(['Site In', 'Site Out',
                            'Transmission', 'Commodity']))
+        else:
+            transmission = pd.DataFrame()
         storage = (
             xls.parse('Storage').set_index(['Site', 'Storage', 'Commodity']))
         demand = xls.parse('Demand').set_index(['t'])
