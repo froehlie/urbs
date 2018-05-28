@@ -133,41 +133,46 @@ def get_timeseries(instance, com, sites, timesteps=None):
         consumed = pd.DataFrame(index=timesteps)
 
     # TRANSMISSION
-    other_sites = get_input(instance, 'site').index.difference(sites)
+    
+    if not instance.transmission.empty:
+        other_sites = get_input(instance, 'site').index.difference(sites)
 
-    # if commodity is transportable
-    df_transmission = get_input(instance, 'transmission')
-    if com in set(df_transmission.index.get_level_values('Commodity')):
-        imported = get_entity(instance, 'e_tra_out')
-        imported = imported.loc[timesteps].xs(com, level='com')
-        imported = imported.unstack(level='tra').sum(axis=1)
-        imported = imported.unstack(level='sit_')[sites].fillna(0).sum(axis=1)
-        imported = imported.unstack(level='sit')
+        # if commodity is transportable
+        df_transmission = get_input(instance, 'transmission')
+        if com in set(df_transmission.index.get_level_values('Commodity')):
+            imported = get_entity(instance, 'e_tra_out')
+            imported = imported.loc[timesteps].xs(com, level='com')
+            imported = imported.unstack(level='tra').sum(axis=1)
+            imported = imported.unstack(level='sit_')[sites].fillna(0).sum(axis=1)
+            imported = imported.unstack(level='sit')
 
-        internal_import = imported[sites].sum(axis=1)  # ...from sites
-        other_sites_im = list(other_sites & imported.columns)
-        imported = imported[other_sites_im]  # ...from other_sites
-        imported = drop_all_zero_columns(imported)
+            internal_import = imported[sites].sum(axis=1)  # ...from sites
+            other_sites_im = list(other_sites & imported.columns)
+            imported = imported[other_sites_im]  # ...from other_sites
+            imported = drop_all_zero_columns(imported)
 
-        exported = get_entity(instance, 'e_tra_in')
-        exported = exported.loc[timesteps].xs(com, level='com')
-        exported = exported.unstack(level='tra').sum(axis=1)
-        exported = exported.unstack(level='sit')[sites].fillna(0).sum(axis=1)
-        exported = exported.unstack(level='sit_')
+            exported = get_entity(instance, 'e_tra_in')
+            exported = exported.loc[timesteps].xs(com, level='com')
+            exported = exported.unstack(level='tra').sum(axis=1)
+            exported = exported.unstack(level='sit')[sites].fillna(0).sum(axis=1)
+            exported = exported.unstack(level='sit_')
 
-        internal_export = exported[sites].sum(axis=1)  # ...to sites (internal)
-        other_sites_ex = list(other_sites & exported.columns)
-        exported = exported[other_sites_ex]  # ...to other_sites
-        exported = drop_all_zero_columns(exported)
+            internal_export = exported[sites].sum(axis=1)  # ...to sites (internal)
+            other_sites_ex = list(other_sites & exported.columns)
+            exported = exported[other_sites_ex]  # ...to other_sites
+            exported = drop_all_zero_columns(exported)
+        else:
+            imported = pd.DataFrame(index=timesteps)
+            exported = pd.DataFrame(index=timesteps)
+            internal_export = pd.Series(0, index=timesteps)
+            internal_import = pd.Series(0, index=timesteps)
+
+        # to be discussed: increase demand by internal transmission losses
+        internal_transmission_losses = internal_export - internal_import
+        demand = demand + internal_transmission_losses
     else:
-        imported = pd.DataFrame(index=timesteps)
-        exported = pd.DataFrame(index=timesteps)
-        internal_export = pd.Series(0, index=timesteps)
-        internal_import = pd.Series(0, index=timesteps)
-
-    # to be discussed: increase demand by internal transmission losses
-    internal_transmission_losses = internal_export - internal_import
-    demand = demand + internal_transmission_losses
+        imported = []
+        exported = []
 
     # STORAGE
     # group storage energies by commodity
