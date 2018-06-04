@@ -37,7 +37,7 @@ def get_constants(instance):
     if not instance.transmission.empty:
         ctra = get_entities(instance, ['cap_tra', 'cap_tra_new'])
     else:
-        ctra =pd.Series()
+        ctra = pd.Series()
     csto = get_entities(instance, ['cap_sto_c', 'cap_sto_c_new',
                                    'cap_sto_p', 'cap_sto_p_new'])
 
@@ -171,8 +171,8 @@ def get_timeseries(instance, com, sites, timesteps=None):
         internal_transmission_losses = internal_export - internal_import
         demand = demand + internal_transmission_losses
     else:
-        imported = []
-        exported = []
+        imported = pd.DataFrame(index=timesteps)
+        exported = pd.DataFrame(index=timesteps)
 
     # STORAGE
     # group storage energies by commodity

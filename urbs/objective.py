@@ -39,21 +39,21 @@ def def_costs_rule(m, cost_type):
 					m.cap_sto_c_new[s] *
 					m.storage_dict['inv-cost-c'][s] *
 					m.storage_dict['annuity-factor'][s]
-					for s in m.sto_tuples_c_expansion and m.sto_tuples_p_expansion) +\
+					for s in m.sto_tuples_c_expansion.intersection(m.sto_tuples_p_expansion)) +\
 				sum(m.cap_sto_p_new[s] *
 					m.storage_dict['inv-cost-p'][s] *
 					m.storage_dict['annuity-factor'][s] +
 					m.storage_dict['inst-cap-c'][(s)] *
 					m.storage_dict['inv-cost-c'][s] *
 					m.storage_dict['annuity-factor'][s]
-					for s in m.sto_tuples_p_expansion-m.sto_tuples_c_expansion) +\
+					for s in m.sto_tuples_p_expansion.difference(m.sto_tuples_c_expansion)) +\
 				sum(m.storage_dict['inst-cap-p'][(s)] *
 					m.storage_dict['inv-cost-p'][s] *
 					m.storage_dict['annuity-factor'][s] +
 					m.cap_sto_c_new[s] *
 					m.storage_dict['inv-cost-c'][s] *
 					m.storage_dict['annuity-factor'][s]
-					for s in m.sto_tuples_c_expansion-m.sto_tuples_p_expansion)                   
+					for s in m.sto_tuples_c_expansion.difference(m.sto_tuples_p_expansion))                   
         else:
             return m.costs[cost_type] == \
                 sum(m.cap_pro_new[p] *
@@ -66,21 +66,21 @@ def def_costs_rule(m, cost_type):
 					m.cap_sto_c_new[s] *
 					m.storage_dict['inv-cost-c'][s] *
 					m.storage_dict['annuity-factor'][s]
-					for s in m.sto_tuples_c_expansion and m.sto_tuples_p_expansion) +\
+					for s in m.sto_tuples_c_expansion.intersection(m.sto_tuples_p_expansion)) +\
 				sum(m.cap_sto_p_new[s] *
 					m.storage_dict['inv-cost-p'][s] *
 					m.storage_dict['annuity-factor'][s] +
 					m.storage_dict['inst-cap-c'][(s)] *
 					m.storage_dict['inv-cost-c'][s] *
 					m.storage_dict['annuity-factor'][s]
-					for s in m.sto_tuples_p_expansion-m.sto_tuples_c_expansion) +\
+					for s in m.sto_tuples_p_expansion.difference(m.sto_tuples_c_expansion)) +\
 				sum(m.storage_dict['inst-cap-p'][(s)] *
 					m.storage_dict['inv-cost-p'][s] *
 					m.storage_dict['annuity-factor'][s] +
 					m.cap_sto_c_new[s] *
 					m.storage_dict['inv-cost-c'][s] *
 					m.storage_dict['annuity-factor'][s]
-					for s in m.sto_tuples_c_expansion-m.sto_tuples_p_expansion)  
+					for s in m.sto_tuples_c_expansion.difference(m.sto_tuples_p_expansion))  
 
     elif cost_type == 'Fixed':
         if not m.transmission.empty:
@@ -93,17 +93,17 @@ def def_costs_rule(m, cost_type):
                         for t in m.tra_tuples) + \
                     sum(m.cap_sto_p[s] * m.storage_dict['fix-cost-p'][s] +
                         m.cap_sto_c[s] * m.storage_dict['fix-cost-c'][s]
-                        for s in m.sto_tuples_p_expansion and m.sto_tuples_c_expansion) + \
+                        for s in m.sto_tuples_p_expansion.intersection(m.sto_tuples_c_expansion)) + \
                     sum(m.cap_sto_p[s] * m.storage_dict['fix-cost-p'][s] +
                         m.storage_dict['inst-cap-c'][(s)] * m.storage_dict['fix-cost-c'][s]
-                        for s in m.sto_tuples_p_expansion-m.sto_tuples_c_expansion) + \
+                        for s in m.sto_tuples_p_expansion.difference(m.sto_tuples_c_expansion)) + \
                     sum(m.storage_dict['inst-cap-p'][(s)] * m.storage_dict['fix-cost-p'][s] +
                         m.cap_sto_c[s] * m.storage_dict['fix-cost-c'][s]
-                        for s in m.sto_tuples_c_expansion-m.sto_tuples_p_expansion) + \
+                        for s in m.sto_tuples_c_expansion.difference(m.sto_tuples_p_expansion)) + \
                     sum(m.storage_dict['inst-cap-p'][(s)] * m.storage_dict['fix-cost-p'][s] +
                         m.storage_dict['inst-cap-c'][(s)] * m.storage_dict['fix-cost-c'][s]
                         for s in m.sto_tuples-m.sto_tuples_c_expansion-m.sto_tuples_p_expansion)
-        else:                                                                   ###
+        else:                                                                   
             return m.costs[cost_type] == \
                     sum(m.cap_pro[p] * m.process_dict['fix-cost'][p]
                         for p in m.pro_tuples_expansion) + \
@@ -111,13 +111,13 @@ def def_costs_rule(m, cost_type):
                         for p in m.pro_tuples-m.pro_tuples_expansion) + \
                     sum(m.cap_sto_p[s] * m.storage_dict['fix-cost-p'][s] +
                         m.cap_sto_c[s] * m.storage_dict['fix-cost-c'][s]
-                        for s in m.sto_tuples_p_expansion and m.sto_tuples_c_expansion) + \
+                        for s in m.sto_tuples_p_expansion.intersection(m.sto_tuples_c_expansion)) + \
                     sum(m.cap_sto_p[s] * m.storage_dict['fix-cost-p'][s] +
                         m.storage_dict['inst-cap-c'][(s)] * m.storage_dict['fix-cost-c'][s]
-                        for s in m.sto_tuples_p_expansion-m.sto_tuples_c_expansion) + \
+                        for s in m.sto_tuples_p_expansion.difference(m.sto_tuples_c_expansion)) + \
                     sum(m.storage_dict['inst-cap-p'][(s)] * m.storage_dict['fix-cost-p'][s] +
                         m.cap_sto_c[s] * m.storage_dict['fix-cost-c'][s]
-                        for s in m.sto_tuples_c_expansion-m.sto_tuples_p_expansion) + \
+                        for s in m.sto_tuples_c_expansion.difference(m.sto_tuples_p_expansion)) + \
                     sum(m.storage_dict['inst-cap-p'][(s)] * m.storage_dict['fix-cost-p'][s] +
                         m.storage_dict['inst-cap-c'][(s)] * m.storage_dict['fix-cost-c'][s]
                         for s in m.sto_tuples-m.sto_tuples_c_expansion-m.sto_tuples_p_expansion)  

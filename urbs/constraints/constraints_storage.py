@@ -38,10 +38,10 @@ def res_storage_input_by_power_rule_const_p(m, t, sit, sto, com):
     return m.e_sto_in[t, sit, sto, com] <= m.storage_dict['inst-cap-p'][(sit, sto, com)]
 
 # storage output <= storage power
-def res_storage_output_by_power_rule(m, t, sit, sto, co):
-    return m.e_sto_out[t, sit, sto, co] <= m.cap_sto_p[sit, sto, co]
-def res_storage_output_by_power_rule_const_p(m, t, sit, sto, co):
-    return m.e_sto_out[t, sit, sto, co] <= m.storage_dict['inst-cap-p'][(sit, sto, com)]
+def res_storage_output_by_power_rule(m, t, sit, sto, com):
+    return m.e_sto_out[t, sit, sto, com] <= m.cap_sto_p[sit, sto, com]
+def res_storage_output_by_power_rule_const_p(m, t, sit, sto, com):
+    return m.e_sto_out[t, sit, sto, com] <= m.storage_dict['inst-cap-p'][(sit, sto, com)]
 
 # storage content <= storage capacity
 def res_storage_state_by_capacity_rule(m, t, sit, sto, com):

@@ -10,24 +10,32 @@ input_file = 'mimo-example.xlsx'
 data = urbs.read_excel(input_file)
 #print(data)
 
-# Check whether input file has only one site i.e. no transmission constraints are needed
-print (data['site'])
-size = data['site'].size
-no_transmission = None
-if size == 1:
-	no_transmission = True
-	print("We have only one site i.e. no transmission")
-else:
-	print("We have", size, "sites")
-
 # simulation timesteps
 (offset, length) = (3500, 168)  
 # time step selection
 timesteps = range(offset, offset+length+1)
 urbs.validate_input(data)	
 # create model
-prob = urbs.create_model(data, timesteps)
-# print storage and process
+m = urbs.create_model(data, timesteps)
+
+print(m.sto_tuples)
+print("p-exp: ",m.sto_tuples_p_expansion,"\n")
+print("c-exp: ",m.sto_tuples_c_expansion,"\n")
+print("Schnittmenge p-exp und c-exp:")
+for s in m.sto_tuples_p_expansion.intersection(m.sto_tuples_c_expansion):
+    print(s,"\n")
+print("p-exp ohne c-exp:")
+for s in m.sto_tuples_p_expansion.difference(m.sto_tuples_c_expansion):
+    print(s,"\n")
+print("c-exp ohne p-exp:")
+for s in m.sto_tuples_c_expansion.difference(m.sto_tuples_p_expansion):
+    print(s,"\n")
+print("Alle ohne c-exp und p-exp:")
+for s in m.sto_tuples-m.sto_tuples_c_expansion-m.sto_tuples_p_expansion:
+    print(s,"\n")
+
+
+"""# print storage and process
 print(prob.process_dict['inst-cap'])
 print(prob.process_dict['cap-up'])
 pro_inst_cap = prob.process_dict['inst-cap']
@@ -47,7 +55,7 @@ for key in (prob.pro_tuples-prob.pro_tuples_expansion):
     else:
         print("no expansion")
 
-"""sto = prob['storage']
+sto = prob['storage']
 pro = prob['process']
 print(sto)
 print(pro)

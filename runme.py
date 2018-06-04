@@ -140,12 +140,12 @@ def run_scenario(input_file, timesteps, scenario, result_dir,
     urbs.save(prob, os.path.join(result_dir, '{}.h5'.format(sce)))
 
     
-    """# write report to spreadsheet                                        report is OFF!                           
+    #write report to spreadsheet                                                                
     urbs.report(
         prob,
         os.path.join(result_dir, '{}.xlsx').format(sce),
         report_tuples=report_tuples,
-        report_sites_name=report_sites_name)"""
+        report_sites_name=report_sites_name)
 
     # result plots
     urbs.result_figures(
