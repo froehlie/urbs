@@ -18,7 +18,14 @@ urbs.validate_input(data)
 # create model
 m = urbs.create_model(data, timesteps)
 
-print(m.sto_tuples)
+m.process_exp = m.process[m.process['inst-cap'] < m.process['cap-up']]
+m.process_const = m.process[m.process['inst-cap'] >= m.process['cap-up']]
+
+print(m.process)
+print(m.process_exp)
+print(m.process_const)
+
+"""print(m.sto_tuples)
 print("p-exp: ",m.sto_tuples_p_expansion,"\n")
 print("c-exp: ",m.sto_tuples_c_expansion,"\n")
 print("Schnittmenge p-exp und c-exp:")
@@ -35,7 +42,7 @@ for s in m.sto_tuples-m.sto_tuples_c_expansion-m.sto_tuples_p_expansion:
     print(s,"\n")
 
 
-"""# print storage and process
+# print storage and process
 print(prob.process_dict['inst-cap'])
 print(prob.process_dict['cap-up'])
 pro_inst_cap = prob.process_dict['inst-cap']
