@@ -21,7 +21,7 @@ def report(instance, filename, report_tuples=None, report_sites_name={}):
     if report_tuples is None:
         report_tuples = get_input(instance, 'demand').columns
 
-    costs, cpro, ctra, csto = get_constants(instance)
+    costs, cpro, csto = get_constants(instance)
 
     # create spreadsheet writer object
     with pd.ExcelWriter(filename) as writer:
@@ -29,7 +29,6 @@ def report(instance, filename, report_tuples=None, report_sites_name={}):
         # write constants to spreadsheet
         costs.to_frame().to_excel(writer, 'Costs')
         cpro.to_excel(writer, 'Process caps')
-        ctra.to_excel(writer, 'Transmission caps')
         csto.to_excel(writer, 'Storage caps')
 
         # initialize timeseries tableaus
@@ -54,17 +53,16 @@ def report(instance, filename, report_tuples=None, report_sites_name={}):
                 report_sites_name[sit] = str(sit)
 
             for lv in help_sit:
-                (created, consumed, stored, imported, exported,
+                (created, consumed, stored, 
                  dsm) = get_timeseries(instance, com, lv)
 
                 overprod = pd.DataFrame(
                     columns=['Overproduction'],
                     data=created.sum(axis=1) - consumed.sum(axis=1) +
-                    imported.sum(axis=1) - exported.sum(axis=1) +
                     stored['Retrieved'] - stored['Stored'])
 
                 tableau = pd.concat(
-                    [created, consumed, stored, imported, exported, overprod,
+                    [created, consumed, stored, overprod,
                      dsm],
                     axis=1,
                     keys=['Created', 'Consumed', 'Storage', 'Import from',
@@ -74,7 +72,6 @@ def report(instance, filename, report_tuples=None, report_sites_name={}):
                 # timeseries sums
                 help_sums = pd.concat([created.sum(), consumed.sum(),
                                        stored.sum().drop('Level'),
-                                       imported.sum(), exported.sum(),
                                        overprod.sum(), dsm.sum()],
                                       axis=0,
                                       keys=['Created', 'Consumed', 'Storage',

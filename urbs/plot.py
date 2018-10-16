@@ -98,10 +98,10 @@ def plot(prob, com, sit, dt, timesteps, timesteps_plot,
         # wrap single site in 1-element list for consistent behaviour
         sit = [sit]
 
-    (created, consumed, stored, imported, exported,
+    (created, consumed, stored, 
      dsm) = get_timeseries(prob, com, sit, timesteps)
 
-    costs, cpro, ctra, csto = get_constants(prob)
+    costs, cpro, csto = get_constants(prob)
 
     # move retrieved/stored storage timeseries to created/consumed and
     # rename storage columns back to 'storage' for color mapping
@@ -112,10 +112,6 @@ def plot(prob, com, sit, dt, timesteps, timesteps_plot,
 
     # only keep storage content in storage timeseries
     stored = stored['Level']
-
-    # add imported/exported timeseries
-    created = created.join(imported)
-    consumed = consumed.join(exported)
 
     # move demand to its own plot
     demand = consumed.pop('Demand')

@@ -38,10 +38,6 @@ def read_excel(filename):
         process_commodity = (
             xls.parse('Process-Commodity')
                .set_index(['Process', 'Commodity', 'Direction']))
-        transmission = (
-            xls.parse('Transmission')
-               .set_index(['Site In', 'Site Out',
-                           'Transmission', 'Commodity']))
         storage = (
             xls.parse('Storage').set_index(['Site', 'Storage', 'Commodity']))
         demand = xls.parse('Demand').set_index(['t'])
@@ -74,7 +70,6 @@ def read_excel(filename):
         'commodity': commodity,
         'process': process,
         'process_commodity': process_commodity,
-        'transmission': transmission,
         'storage': storage,
         'demand': demand,
         'supim': supim,
@@ -106,7 +101,6 @@ def pyomo_model_prep(data, timesteps):
     m.commodity = data['commodity']
     m.process = data['process']
     m.process_commodity = data['process_commodity']
-    m.transmission = data['transmission']
     m.storage = data['storage']
     m.demand = data['demand']
     m.supim = data['supim']
@@ -167,13 +161,7 @@ def pyomo_model_prep(data, timesteps):
                                    annuity_factor(x['depreciation'],
                                                   x['wacc']),
                                    axis=1))
-    try:
-        m.transmission['annuity-factor'] = (m.transmission.apply(lambda x:
-                                            annuity_factor(x['depreciation'],
-                                                           x['wacc']),
-                                            axis=1))
-    except ValueError:
-        pass
+                                   
     try:
         m.storage['annuity-factor'] = (m.storage.apply(lambda x:
                                        annuity_factor(x['depreciation'],
@@ -185,7 +173,6 @@ def pyomo_model_prep(data, timesteps):
     # Converting Data frames to dictionaries
     #
     m.process_dict = m.process.to_dict()  # Changed
-    m.transmission_dict = m.transmission.to_dict()  # Changed
     m.storage_dict = m.storage.to_dict()  # Changed
     return m
 

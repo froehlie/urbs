@@ -40,14 +40,6 @@ def validate_input(data):
             raise ValueError('Ensure cap_lo <= cap_up and inst_cap <= cap_up'
                              ' for all processes.')
 
-    for index in data['transmission'].index:
-        if not (data['transmission'].loc[index]['cap-lo'] <=
-                data['transmission'].loc[index]['cap-up'] and
-                data['transmission'].loc[index]['inst-cap'] <=
-                data['transmission'].loc[index]['cap-up']):
-            raise ValueError('Ensure cap_lo <= cap_up and inst_cap <= cap_up'
-                             ' for all transmissions.')
-
     for index in data['storage'].index:
         if not (data['storage'].loc[index]['cap-lo-p'] <=
                 data['storage'].loc[index]['cap-up-p'] and

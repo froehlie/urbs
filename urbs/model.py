@@ -93,12 +93,6 @@ def create_model(data, dt=1, timesteps=None, dual=False):
         initialize=m.process.index.get_level_values('Process').unique(),
         doc='Set of conversion processes')
 
-    # tranmission (e.g. hvac, hvdc, pipeline...)
-    m.tra = pyomo.Set(
-        initialize=m.transmission.index.get_level_values('Transmission')
-                                       .unique(),
-        doc='Set of transmission technologies')
-
     # storage (e.g. hydrogen, pump storage)
     m.sto = pyomo.Set(
         initialize=m.storage.index.get_level_values('Storage').unique(),
@@ -119,11 +113,6 @@ def create_model(data, dt=1, timesteps=None, dual=False):
         within=m.sit*m.pro,
         initialize=m.process.index,
         doc='Combinations of possible processes, e.g. (North,Coal plant)')
-    m.tra_tuples = pyomo.Set(
-        within=m.sit*m.sit*m.tra*m.com,
-        initialize=m.transmission.index,
-        doc='Combinations of possible transmissions, e.g. '
-            '(South,Mid,hvac,Elec)')
     m.sto_tuples = pyomo.Set(
         within=m.sit*m.sto*m.com,
         initialize=m.storage.index,
@@ -288,23 +277,6 @@ def create_model(data, dt=1, timesteps=None, dual=False):
         within=pyomo.NonNegativeReals,
         doc='Power flow out of process (MW) per timestep')
 
-    # transmission
-    m.cap_tra = pyomo.Var(
-        m.tra_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='Total transmission capacity (MW)')
-    m.cap_tra_new = pyomo.Var(
-        m.tra_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='New transmission capacity (MW)')
-    m.e_tra_in = pyomo.Var(
-        m.tm, m.tra_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='Power flow into transmission line (MW) per timestep')
-    m.e_tra_out = pyomo.Var(
-        m.tm, m.tra_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='Power flow out of transmission line (MW) per timestep')
 
     # storage
     m.cap_sto_c = pyomo.Var(
@@ -460,28 +432,6 @@ def create_model(data, dt=1, timesteps=None, dual=False):
         rule=def_pro_partial_timevar_output_rule,
         doc='e_pro_out = tau_pro * r_out * eff_factor')
 
-    # transmission
-    m.def_transmission_capacity = pyomo.Constraint(
-        m.tra_tuples,
-        rule=def_transmission_capacity_rule,
-        doc='total transmission capacity = inst-cap + new capacity')
-    m.def_transmission_output = pyomo.Constraint(
-        m.tm, m.tra_tuples,
-        rule=def_transmission_output_rule,
-        doc='transmission output = transmission input * efficiency')
-    m.res_transmission_input_by_capacity = pyomo.Constraint(
-        m.tm, m.tra_tuples,
-        rule=res_transmission_input_by_capacity_rule,
-        doc='transmission input <= total transmission capacity')
-    m.res_transmission_capacity = pyomo.Constraint(
-        m.tra_tuples,
-        rule=res_transmission_capacity_rule,
-        doc='transmission.cap-lo <= total transmission capacity <= '
-            'transmission.cap-up')
-    m.res_transmission_symmetry = pyomo.Constraint(
-        m.tra_tuples,
-        rule=res_transmission_symmetry_rule,
-        doc='total transmission capacity must be symmetric in both directions')
 
     # storage
     m.def_storage_state = pyomo.Constraint(
@@ -939,40 +889,6 @@ def res_sell_buy_symmetry_rule(m, sit_in, pro_in, coin):
         return pyomo.Constraint.Skip
 
 
-# transmission
-
-# transmission capacity == new capacity + existing capacity
-def def_transmission_capacity_rule(m, sin, sout, tra, com):
-    return (m.cap_tra[sin, sout, tra, com] ==
-            m.cap_tra_new[sin, sout, tra, com] +
-            m.transmission_dict['inst-cap'][(sin, sout, tra, com)])
-
-
-# transmission output == transmission input * efficiency
-def def_transmission_output_rule(m, tm, sin, sout, tra, com):
-    return (m.e_tra_out[tm, sin, sout, tra, com] ==
-            m.e_tra_in[tm, sin, sout, tra, com] *
-            m.transmission_dict['eff'][(sin, sout, tra, com)])
-
-
-# transmission input <= transmission capacity
-def res_transmission_input_by_capacity_rule(m, tm, sin, sout, tra, com):
-    return (m.e_tra_in[tm, sin, sout, tra, com] <=
-            m.dt * m.cap_tra[sin, sout, tra, com])
-
-
-# lower bound <= transmission capacity <= upper bound
-def res_transmission_capacity_rule(m, sin, sout, tra, com):
-    return (m.transmission_dict['cap-lo'][(sin, sout, tra, com)],
-            m.cap_tra[sin, sout, tra, com],
-            m.transmission_dict['cap-up'][(sin, sout, tra, com)])
-
-
-# transmission capacity from A to B == transmission capacity from B to A
-def res_transmission_symmetry_rule(m, sin, sout, tra, com):
-    return m.cap_tra[sin, sout, tra, com] == m.cap_tra[sout, sin, tra, com]
-
-
 # storage
 
 # storage content in timestep [t] == storage content[t-1] * (1-discharge)
@@ -1099,10 +1015,6 @@ def def_costs_rule(m, cost_type):
                 m.process_dict['inv-cost'][p] *
                 m.process_dict['annuity-factor'][p]
                 for p in m.pro_tuples) + \
-            sum(m.cap_tra_new[t] *
-                m.transmission_dict['inv-cost'][t] *
-                m.transmission_dict['annuity-factor'][t]
-                for t in m.tra_tuples) + \
             sum(m.cap_sto_p_new[s] *
                 m.storage_dict['inv-cost-p'][s] *
                 m.storage_dict['annuity-factor'][s] +
@@ -1115,8 +1027,6 @@ def def_costs_rule(m, cost_type):
         return m.costs[cost_type] == \
             sum(m.cap_pro[p] * m.process_dict['fix-cost'][p]
                 for p in m.pro_tuples) + \
-            sum(m.cap_tra[t] * m.transmission_dict['fix-cost'][t]
-                for t in m.tra_tuples) + \
             sum(m.cap_sto_p[s] * m.storage_dict['fix-cost-p'][s] +
                 m.cap_sto_c[s] * m.storage_dict['fix-cost-c'][s]
                 for s in m.sto_tuples)
@@ -1127,10 +1037,6 @@ def def_costs_rule(m, cost_type):
                 m.process_dict['var-cost'][p]
                 for tm in m.tm
                 for p in m.pro_tuples) + \
-            sum(m.e_tra_in[(tm,) + t] * m.weight *
-                m.transmission_dict['var-cost'][t]
-                for tm in m.tm
-                for t in m.tra_tuples) + \
             sum(m.e_sto_con[(tm,) + s] * m.weight *
                 m.storage_dict['var-cost-c'][s] +
                 m.weight *
