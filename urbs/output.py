@@ -39,7 +39,7 @@ def get_constants(instance):
 
     # better labels and index names and return sorted
     if not cpro.empty:
-        cpro.index.names = ['Site', 'Process']
+        cpro.index.names = ['Process']
         cpro.columns = ['Total', 'New']
         cpro.sort_index(inplace=True)
     if not csto.empty:
@@ -49,7 +49,7 @@ def get_constants(instance):
     return costs, cpro, csto
 
 
-def get_timeseries(instance, com, sites, timesteps=None):
+def get_timeseries(instance, com, timesteps=None):
     """Return DataFrames of all timeseries referring to given commodity
 
     Usage:
@@ -79,9 +79,6 @@ def get_timeseries(instance, com, sites, timesteps=None):
     else:
         timesteps = sorted(timesteps)  # implicit: convert range to list
 
-    if is_string(sites):
-        # wrap single site name into list
-        sites = [sites]
 
     # DEMAND
     # default to zeros if commodity has no demand, get timeseries
@@ -109,7 +106,6 @@ def get_timeseries(instance, com, sites, timesteps=None):
     created = get_entity(instance, 'e_pro_out')
     created = created.xs(com, level='com').loc[timesteps]
     try:
-        created = created.unstack(level='sit')[sites].fillna(0).sum(axis=1)
         created = created.unstack(level='pro')
         created = drop_all_zero_columns(created)
     except KeyError:
@@ -118,7 +114,6 @@ def get_timeseries(instance, com, sites, timesteps=None):
     consumed = get_entity(instance, 'e_pro_in')
     consumed = consumed.xs(com, level='com').loc[timesteps]
     try:
-        consumed = consumed.unstack(level='sit')[sites].fillna(0).sum(axis=1)
         consumed = consumed.unstack(level='pro')
         consumed = drop_all_zero_columns(consumed)
     except KeyError:
@@ -131,7 +126,7 @@ def get_timeseries(instance, com, sites, timesteps=None):
     stored = get_entities(instance, ['e_sto_con', 'e_sto_in', 'e_sto_out'])
     try:
         stored = stored.loc[timesteps].xs(com, level='com')
-        stored = stored.groupby(level=['t', 'sit']).sum()
+        stored = stored.groupby(level=['t']).sum()
         stored = stored.loc[(slice(None), sites), :].sum(level='t')
         stored.columns = ['Level', 'Stored', 'Retrieved']
     except (KeyError, ValueError):
@@ -157,8 +152,8 @@ def get_timeseries(instance, com, sites, timesteps=None):
             dsmdo = dsmdo.xs(com, level='com')
 
             # select sites
-            dsmup = dsmup.unstack()[sites].sum(axis=1)
-            dsmdo = dsmdo.unstack()[sites].sum(axis=1)
+            dsmup = dsmup.unstack().sum(axis=1)
+            dsmdo = dsmdo.unstack().sum(axis=1)
 
             # convert dsmdo to Series by summing over the first time level
             dsmdo = dsmdo.unstack().sum(axis=0)

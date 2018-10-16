@@ -16,18 +16,18 @@ def validate_input(data):
     """
 
     # Ensure correct formation of vertex rule
-    for (sit, pro) in data['process'].index:
+    for (pro) in data['process'].index:
         for com in data['commodity'].index.get_level_values('Commodity'):
             simplified_pro_com_index = ([(p, c) for p, c, d in
                                         data['process_commodity'].index
                                         .tolist()])
-            simplified_com_index = ([(s, c) for s, c, t in data['commodity']
+            simplified_com_index = ([(c) for c, t in data['commodity']
                                     .index.tolist()])
             if ((pro, com) in simplified_pro_com_index and
-                    (sit, com) not in simplified_com_index):
+                    (com) not in simplified_com_index):
                 raise ValueError('Commodities used in a process at a site must'
                                  ' be specified in the commodity input sheet'
-                                 '! The pair (' + sit + ',' + com + ')'
+                                 '! The pair (' ',' + com + ')'
                                  ' is not in commodity input sheet.')
 
     # Identify infeasible process, transmission and storage capacity
@@ -95,29 +95,6 @@ def validate_input(data):
                        "ensure that the input values are adjusted "
                        "correspondingly.")
 
-    # Identify inconsistencies in site names throughout worksheets
-    for site in data['site'].index.tolist():
-        if site not in data['commodity'].index.levels[0].tolist():
-            raise KeyError("All names in the column 'Site' in input worksheet "
-                           "'Commodity' must be from the list of site names "
-                           "specified in the worksheet 'Site'.")
 
-    for site in data['site'].index.tolist():
-        if site not in data['process'].index.levels[0].tolist():
-            raise KeyError("All names in the column 'Site' in input worksheet "
-                           "'Process' must be from the list of site names "
-                           "specified in the worksheet 'Site'.")
 
-    if not data['storage'].empty:
-        for site in data['site'].index.tolist():
-            if site not in data['storage'].index.levels[0].tolist():
-                raise KeyError("All names in the column 'Site' in input "
-                               "worksheet 'Storage' must be from the list of "
-                               "site names specified in the worksheet 'Site'.")
 
-    if not data['dsm'].empty:
-        for site in data['site'].index.tolist():
-            if site not in data['dsm'].index.levels[0].tolist():
-                raise KeyError("All names in the column 'Site' in input "
-                               "worksheet 'DSM' must be from the list of site "
-                               "names specified in the worksheet 'Site'.")

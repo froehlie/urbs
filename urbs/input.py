@@ -31,19 +31,18 @@ def read_excel(filename):
 
         sheetnames = xls.sheet_names
 
-        site = xls.parse('Site').set_index(['Name'])
         commodity = (
-            xls.parse('Commodity').set_index(['Site', 'Commodity', 'Type']))
-        process = xls.parse('Process').set_index(['Site', 'Process'])
+            xls.parse('Commodity').set_index(['Commodity', 'Type']))
+        process = xls.parse('Process').set_index(['Process'])
         process_commodity = (
             xls.parse('Process-Commodity')
                .set_index(['Process', 'Commodity', 'Direction']))
         storage = (
-            xls.parse('Storage').set_index(['Site', 'Storage', 'Commodity']))
+            xls.parse('Storage').set_index(['Storage', 'Commodity']))
         demand = xls.parse('Demand').set_index(['t'])
         supim = xls.parse('SupIm').set_index(['t'])
         buy_sell_price = xls.parse('Buy-Sell-Price').set_index(['t'])
-        dsm = xls.parse('DSM').set_index(['Site', 'Commodity'])
+        dsm = xls.parse('DSM').set_index(['Commodity'])
         if 'Global' in sheetnames:
             global_prop = xls.parse('Global').set_index(['Property'])
         else:
@@ -66,7 +65,6 @@ def read_excel(filename):
 
     data = {
         'global_prop': global_prop,
-        'site': site,
         'commodity': commodity,
         'process': process,
         'process_commodity': process_commodity,
@@ -97,7 +95,6 @@ def pyomo_model_prep(data, timesteps):
     #     m.storage.loc[site, storage, commodity][attribute]
     #
     m.global_prop = data['global_prop'].drop('description', axis=1)
-    m.site = data['site']
     m.commodity = data['commodity']
     m.process = data['process']
     m.process_commodity = data['process_commodity']
@@ -125,9 +122,7 @@ def pyomo_model_prep(data, timesteps):
 
     # process areas
     m.proc_area = m.process['area-per-cap']
-    m.sit_area = m.site['area']
     m.proc_area = m.proc_area[m.proc_area >= 0]
-    m.sit_area = m.sit_area[m.sit_area >= 0]
 
     # input ratios for partial efficiencies
     # only keep those entries whose values are

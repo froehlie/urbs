@@ -26,7 +26,7 @@ def annuity_factor(n, i):
         return (1+i)**n * i / ((1+i)**n - 1)
 
 
-def commodity_balance(m, tm, sit, com):
+def commodity_balance(m, tm, com):
     """Calculate commodity balance at given timestep.
 
     For a given commodity co and timestep tm, calculate the balance of
@@ -45,24 +45,24 @@ def commodity_balance(m, tm, sit, com):
         balance: net value of consumed (positive) or provided (negative) power
 
     """
-    balance = (sum(m.e_pro_in[(tm, site, process, com)]
+    balance = (sum(m.e_pro_in[(tm, process, com)]
                    # usage as input for process increases balance
-                   for site, process in m.pro_tuples
-                   if site == sit and (process, com) in m.r_in_dict) -
-               sum(m.e_pro_out[(tm, site, process, com)]
+                   for process in m.pro
+                   if (process, com) in m.r_in_dict) -
+               sum(m.e_pro_out[(tm, process, com)]
                    # output from processes decreases balance
-                   for site, process in m.pro_tuples
-                   if site == sit and (process, com) in m.r_out_dict) +
-               sum(m.e_sto_in[(tm, site, storage, com)] -
-                   m.e_sto_out[(tm, site, storage, com)]
+                   for process in m.pro
+                   if (process, com) in m.r_out_dict) +
+               sum(m.e_sto_in[(tm, storage, com)] -
+                   m.e_sto_out[(tm, storage, com)]
                    # usage as input for storage increases consumption
                    # output from storage decreases consumption
-                   for site, storage, commodity in m.sto_tuples
-                   if site == sit and commodity == com))
+                   for storage, commodity in m.sto_tuples
+                   if commodity == com))
     return balance
 
 
-def dsm_down_time_tuples(time, sit_com_tuple, m):
+def dsm_down_time_tuples(time, com_tuple, m):
     """ Dictionary for the two time instances of DSM_down
 
 
@@ -82,15 +82,15 @@ def dsm_down_time_tuples(time, sit_com_tuple, m):
     lb = min(time)
     time_list = []
 
-    for (site, commodity) in sit_com_tuple:
+    for (commodity) in com_tuple:
         for step1 in time:
             for step2 in range(step1 -
-                               max(int(delay[site, commodity] /
+                               max(int(delay[commodity] /
                                        m.dt.value), 1),
-                               step1 + max(int(delay[site, commodity] /
+                               step1 + max(int(delay[commodity] /
                                                m.dt.value), 1) + 1):
                 if lb <= step2 <= ub:
-                    time_list.append((step1, step2, site, commodity))
+                    time_list.append((step1, step2, commodity))
 
     return time_list
 
@@ -156,16 +156,16 @@ def commodity_subset(com_tuples, type_name):
     """
     if type(type_name) is str:
         # type_name: ('Stock', 'SupIm', 'Env' or 'Demand')
-        return set(com for sit, com, com_type in com_tuples
+        return set(com for com, com_type in com_tuples
                    if com_type == type_name)
     else:
         # type(type_name) is a class 'pyomo.base.sets.SimpleSet'
         # type_name: ('Buy')=>('Elec buy', 'Heat buy')
-        return set((sit, com, com_type) for sit, com, com_type in com_tuples
+        return set((com, com_type) for com, com_type in com_tuples
                    if com in type_name)
 
 
-def search_sell_buy_tuple(instance, sit_in, pro_in, coin):
+def search_sell_buy_tuple(instance, pro_in, coin):
     """ Return the equivalent sell-process for a given buy-process.
 
     Args:
