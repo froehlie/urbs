@@ -110,22 +110,29 @@ def run_scenario(input_file, timesteps, scenario, result_dir, dt,
     Returns:
         the urbs model instance
     """
+    
+    #start time for measuring runtime
+    scenario_start = datetime.now()
 
     # scenario name, read and modify data for scenario
     sce = scenario.__name__
     data = urbs.read_excel(input_file)
     data = scenario(data)
     urbs.validate_input(data)
+    
+    print("Time to read input file: ", datetime.now() - scenario_start)
 
     # create model
     prob = urbs.create_model(data, dt, timesteps)
+    
+    print("Time to create model: ", datetime.now() - scenario_start)
 
     # refresh time stamp string and create filename for logfile
     now = prob.created
     log_filename = os.path.join(result_dir, '{}.log').format(sce)
 
     # solve model and read results
-    optim = SolverFactory('glpk')  # cplex, glpk, gurobi, ...
+    optim = SolverFactory('gurobi')  # cplex, glpk, gurobi, ...
     optim = setup_solver(optim, logfile=log_filename)
     result = optim.solve(prob, tee=True)
 
@@ -163,7 +170,7 @@ if __name__ == '__main__':
     shutil.copy(__file__, result_dir)
 
     # simulation timesteps
-    (offset, length) = (3500, 168)  # time step selection
+    (offset, length) = (3500, 300)  # time step selection
     timesteps = range(offset, offset+length+1)
     dt = 1  # length of each time step (unit: hours)
 
