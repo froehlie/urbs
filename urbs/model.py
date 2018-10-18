@@ -104,6 +104,10 @@ def create_model(data, dt=1, timesteps=None, dual=False):
         within=m.com*m.com_type,
         initialize=m.commodity.index,
         doc='Combinations of defined commodities, e.g. (Mid,Elec,Demand)')
+    m.pro_tuples = pyomo.Set(
+        within=m.pro,
+        initialize=m.process.index,
+        doc='Combinations of possible processes, e.g. (North,Coal plant)')
     m.sto_tuples = pyomo.Set(
         within=m.sto*m.com,
         initialize=m.storage.index,
@@ -154,14 +158,14 @@ def create_model(data, dt=1, timesteps=None, dual=False):
     m.pro_input_tuples = pyomo.Set(
         within=m.pro*m.com,
         initialize=[(process, commodity)
-                    for (process) in m.pro
+                    for (process) in m.pro_tuples
                     for (pro, commodity) in m.r_in.index
                     if process == pro],
         doc='Commodities consumed by process by site, e.g. (Mid,PV,Solar)')
     m.pro_output_tuples = pyomo.Set(
         within=m.pro*m.com,
         initialize=[(process, commodity)
-                    for (process) in m.pro
+                    for (process) in m.pro_tuples
                     for (pro, commodity) in m.r_out.index
                     if process == pro],
         doc='Commodities produced by process by site, e.g. (Mid,PV,Elec)')
@@ -170,7 +174,7 @@ def create_model(data, dt=1, timesteps=None, dual=False):
     m.pro_maxgrad_tuples = pyomo.Set(
         within=m.pro,
         initialize=[(pro)
-                    for (pro) in m.pro
+                    for (pro) in m.pro_tuples
                     if m.process.loc[pro]['max-grad'] < 1.0 / dt],
         doc='Processes with maximum gradient smaller than timestep length')
 
@@ -178,7 +182,7 @@ def create_model(data, dt=1, timesteps=None, dual=False):
     m.pro_partial_tuples = pyomo.Set(
         within=m.pro,
         initialize=[(process)
-                    for (process) in m.pro
+                    for (process) in m.pro_tuples
                     for (pro, _) in m.r_in_min_fraction.index
                     if process == pro],
         doc='Processes with partial input')
@@ -244,23 +248,23 @@ def create_model(data, dt=1, timesteps=None, dual=False):
 
     # process
     m.cap_pro = pyomo.Var(
-        m.pro,
+        m.pro_tuples,
         within=pyomo.NonNegativeReals,
         doc='Total process capacity (MW)')
     m.cap_pro_new = pyomo.Var(
-        m.pro,
+        m.pro_tuples,
         within=pyomo.NonNegativeReals,
         doc='New process capacity (MW)')
     m.tau_pro = pyomo.Var(
-        m.t, m.pro,
+        m.t, m.pro_tuples,
         within=pyomo.NonNegativeReals,
         doc='Power flow (MW) through process')
     m.e_pro_in = pyomo.Var(
-        m.tm, m.pro, m.com,
+        m.tm, m.pro_tuples, m.com,
         within=pyomo.NonNegativeReals,
         doc='Power flow of commodity into process (MW) per timestep')
     m.e_pro_out = pyomo.Var(
-        m.tm, m.pro, m.com,
+        m.tm, m.pro_tuples, m.com,
         within=pyomo.NonNegativeReals,
         doc='Power flow out of process (MW) per timestep')
 
@@ -366,7 +370,7 @@ def create_model(data, dt=1, timesteps=None, dual=False):
         rule=def_intermittent_supply_rule,
         doc='process output = process capacity * supim timeseries')
     m.res_process_throughput_by_capacity = pyomo.Constraint(
-        m.tm, m.pro,
+        m.tm, m.pro_tuples,
         rule=res_process_throughput_by_capacity_rule,
         doc='process throughput <= total process capacity')
     m.res_process_maxgrad_lower = pyomo.Constraint(
@@ -378,7 +382,7 @@ def create_model(data, dt=1, timesteps=None, dual=False):
         rule=res_process_maxgrad_upper_rule,
         doc='throughput may not increase faster than maximal gradient')
     m.res_process_capacity = pyomo.Constraint(
-        m.pro,
+        m.pro_tuples,
         rule=res_process_capacity_rule,
         doc='process.cap-lo <= total process capacity <= process.cap-up')
 
@@ -572,7 +576,7 @@ def res_vertex_rule(m, tm, com, com_type):
 
 
 # DSMup == DSMdo * efficiency factor n
-def def_dsm_variables_rule(m, tm, sit, com):
+def def_dsm_variables_rule(m, tm, com):
     dsm_down_sum = 0
     for tt in dsm_time_tuples(tm,
                               m.timesteps[1:],
@@ -585,12 +589,12 @@ def def_dsm_variables_rule(m, tm, sit, com):
 
 # DSMup <= Cup (threshold capacity of DSMup)
 def res_dsm_upward_rule(m, tm, com):
-    return m.dsm_up[tm, sit, com] <= (m.dt *
+    return m.dsm_up[tm, com] <= (m.dt *
                                       m.dsm_dict['cap-max-up'][(com)])
 
 
 # DSMdo <= Cdo (threshold capacity of DSMdo)
-def res_dsm_downward_rule(m, tm, sit, com):
+def res_dsm_downward_rule(m, tm, com):
     dsm_down_sum = 0
     for t in dsm_time_tuples(tm,
                              m.timesteps[1:],
@@ -821,10 +825,10 @@ def def_pro_timevar_output_rule(m, tm, pro, com):
                 m.eff_factor_dict[(pro)][tm])
 
 
-def def_pro_partial_timevar_output_rule(m, tm, sit, pro, coo):
+def def_pro_partial_timevar_output_rule(m, tm, pro, coo):
     R = m.r_out.loc[pro, coo]  # input ratio at maximum operation point
     r = m.r_out_min_fraction[pro, coo]  # input ratio at lowest operation point
-    min_fraction = m.process_dict['min-fraction'][(sit, pro)]
+    min_fraction = m.process_dict['min-fraction'][(pro)]
 
     online_factor = min_fraction * (r - R) / (1 - min_fraction)
     throughput_factor = (R - min_fraction * r) / (1 - min_fraction)
@@ -998,7 +1002,7 @@ def def_costs_rule(m, cost_type):
             sum(m.cap_pro_new[p] *
                 m.process_dict['inv-cost'][p] *
                 m.process_dict['annuity-factor'][p]
-                for p in m.pro) + \
+                for p in m.pro_tuples) + \
             sum(m.cap_sto_p_new[s] *
                 m.storage_dict['inv-cost-p'][s] *
                 m.storage_dict['annuity-factor'][s] +
@@ -1010,17 +1014,17 @@ def def_costs_rule(m, cost_type):
     elif cost_type == 'Fixed':
         return m.costs[cost_type] == \
             sum(m.cap_pro[p] * m.process_dict['fix-cost'][p]
-                for p in m.pro) + \
+                for p in m.pro_tuples) + \
             sum(m.cap_sto_p[s] * m.storage_dict['fix-cost-p'][s] +
                 m.cap_sto_c[s] * m.storage_dict['fix-cost-c'][s]
                 for s in m.sto_tuples)
 
     elif cost_type == 'Variable':
         return m.costs[cost_type] == \
-            sum(m.tau_pro[(tm,) + p] * m.weight *
+            sum(m.tau_pro[tm, p] * m.weight *                     ########????############
                 m.process_dict['var-cost'][p]
                 for tm in m.tm
-                for p in m.pro) + \
+                for p in m.pro_tuples) + \
             sum(m.e_sto_con[(tm,) + s] * m.weight *
                 m.storage_dict['var-cost-c'][s] +
                 m.weight *
