@@ -1,0 +1,32 @@
+Time to run scenario: 36.84 sec 
+Time to read file: 1.44 sec 
+Time to create model: 2.22 sec 
+
+Time to run scenario: 34.53 sec 
+Time to read file: 1.44 sec 
+Time to create model: 2.31 sec 
+
+Time to run scenario: 35.36 sec 
+Time to read file: 1.44 sec 
+Time to create model: 2.22 sec 
+
+Time to run scenario: 36.39 sec 
+Time to read file: 1.41 sec 
+Time to create model: 2.20 sec 
+
+Time to run scenario: 22.11 sec 
+Time to read file: 1.47 sec 
+Time to create model: 1.92 sec 
+
+Time to run scenario: 36.50 sec 
+Time to read file: 1.41 sec 
+Time to create model: 2.48 sec 
+
+Time to run scenario: 35.81 sec 
+Time to read file: 1.44 sec 
+Time to create model: 2.22 sec 
+
+Scenario: scenario_baseTime to run scenario: 36.19 sec 
+Time to read file: 1.38 sec 
+Time to create model: 2.20 sec 
+
