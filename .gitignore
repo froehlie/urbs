@@ -2,4 +2,4 @@
 *.pyc
 result/*
 results/*
-doc/_build/*timelog.txt/*
+doc/_build/*

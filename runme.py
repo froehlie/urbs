@@ -111,7 +111,7 @@ def run_scenario(input_file, timesteps, scenario, result_dir, dt,
     Returns:
         the urbs model instance
     """
-    
+
     # start time measurement
     start_time = time.process_time()
 
@@ -120,15 +120,14 @@ def run_scenario(input_file, timesteps, scenario, result_dir, dt,
     data = urbs.read_excel(input_file)
     data = scenario(data)
     urbs.validate_input(data)
-    
+
     # measure time to read file
     read_time = time.process_time()
     print("Time to read file: %.2f sec" % (read_time - start_time))
-    
 
     # create model
     prob = urbs.create_model(data, dt, timesteps)
-    
+
     # measure time to create model
     model_time = time.process_time()
     print("Time to create model: %.2f sec" % (model_time - read_time))
@@ -162,18 +161,21 @@ def run_scenario(input_file, timesteps, scenario, result_dir, dt,
         plot_sites_name=plot_sites_name,
         periods=plot_periods,
         figure_size=(24, 9))
-        
+
     # measure time to run scenario
     sce_time = time.process_time()
     print("Time to run scenario: %.2f sec" % (sce_time - start_time))
-    
-    # write time measurements into file
-    timelog = open("timelog.txt","a")
+
+    # write time measurements into file "timelog.txt" in result directory
+    timelog = open(os.path.join(result_dir, "timelog.txt"), "a")
     timelog.write("Scenario: %s \r\n" % sce)
-    timelog.write("Time to run scenario: %.2f sec \r\n" % (sce_time - start_time))
-    timelog.write("Time to read file: %.2f sec \r\n" % (read_time - start_time))
-    timelog.write("Time to create model: %.2f sec \r\n\r\n" % (model_time - read_time))
-    
+    timelog.write("Time to run scenario: %.2f sec \r\n"
+                  % (sce_time - start_time))
+    timelog.write("Time to read file: %.2f sec \r\n"
+                  % (read_time - start_time))
+    timelog.write("Time to create model: %.2f sec \r\n\r\n"
+                  % (model_time - read_time))
+
     return prob
 
 
@@ -233,12 +235,6 @@ if __name__ == '__main__':
         scenario_north_process_caps,
         scenario_all_together
         ]
-    
-    # print date into timelog
-    timelog = open("timelog.txt","a")
-    now = datetime.now().strftime('%Y-%m-%d %H:%M')
-    timelog.write("%s\r\n" %now)
-    timelog.close()
 
     for scenario in scenarios:
         prob = run_scenario(input_file, timesteps, scenario, result_dir, dt,
@@ -247,6 +243,6 @@ if __name__ == '__main__':
                             plot_periods=plot_periods,
                             report_tuples=report_tuples,
                             report_sites_name=report_sites_name)
-    
-    #open timelog file
-    os.startfile("timelog.txt")
+
+    # open timelog file
+    os.startfile(os.path.join(result_dir, "timelog.txt"))
