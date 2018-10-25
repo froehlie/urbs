@@ -226,14 +226,19 @@ if __name__ == '__main__':
     # select scenarios to be run
     scenarios = [
         scenario_base,
-        #scenario_stock_prices,
-        #scenario_co2_limit,
-        #scenario_co2_tax_mid,
-        #scenario_no_dsm,
-        #scenario_north_process_caps,
-        #scenario_all_together
+        scenario_stock_prices,
+        scenario_co2_limit,
+        scenario_co2_tax_mid,
+        scenario_no_dsm,
+        scenario_north_process_caps,
+        scenario_all_together
         ]
     
+    # print date into timelog
+    timelog = open("timelog.txt","a")
+    now = datetime.now().strftime('%Y-%m-%d %H:%M')
+    timelog.write("%s\r\n" %now)
+    timelog.close()
 
     for scenario in scenarios:
         prob = run_scenario(input_file, timesteps, scenario, result_dir, dt,
@@ -242,3 +247,6 @@ if __name__ == '__main__':
                             plot_periods=plot_periods,
                             report_tuples=report_tuples,
                             report_sites_name=report_sites_name)
+    
+    #open timelog file
+    os.startfile("timelog.txt")
