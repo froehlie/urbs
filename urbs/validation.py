@@ -86,6 +86,7 @@ def validate_input(data):
                        "correspondingly.")
 
     # Identify inconsistencies in site names throughout worksheets
+
     for site in data['site'].index.levels[1].tolist():
         if site not in data['commodity'].index.levels[1].tolist():
             raise KeyError("All names in the column 'Site' in input worksheet "
