@@ -19,3 +19,5 @@ from .plot import plot, result_figures, to_color
 from .pyomoio import get_entity, get_entities, list_entities
 from .report import report
 from .saveload import load, save
+from .scenarios import *
+from .runfunctions import *

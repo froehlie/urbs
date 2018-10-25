@@ -132,7 +132,7 @@ def compare_scenarios(result_files, output_filename):
             # repair broken MultiIndex in the first column
             esum.reset_index(inplace=True)
             esum.fillna(method='ffill', inplace=True)
-            esum.set_index(['level_0', 'level_1'], inplace=True)
+            esum.set_index(['index', 'pro'], inplace=True)
 
             costs.append(cost)
 
@@ -256,4 +256,4 @@ if __name__ == '__main__':
         # specify comparison result filename
         # and run the comparison function
         comp_filename = os.path.join(directory, 'comparison')
-        compare_scenarios(list(reversed(result_files)), comp_filename)
+compare_scenarios(list(reversed(result_files)), comp_filename)

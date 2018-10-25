@@ -1,5 +1,11 @@
 COLORS = {
     # process types
+    'PV WE 10°': (184, 161, 54),
+    'PV S 30°': (230, 219, 170),
+    'Import Gridelec Mix': (146, 148, 148),
+    'Gas Turbine Cheng Cycle hd': (62, 110, 144),
+    'Gas Turbine Cheng Cycle ed': (170, 198, 218),
+    'Gas Engine CHP': (130, 117, 104),
     'Biomass plant': (0, 122, 55),
     'Coal plant': (100, 100, 100),
     'Gas plant': (237, 227, 0),
