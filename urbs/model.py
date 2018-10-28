@@ -1016,7 +1016,7 @@ def res_sell_buy_symmetry_rule(m, stf, sit_in, pro_in, coin):
             return (m.cap_pro[stf, sit_in, pro_in] ==
                     m.cap_pro[stf, sit_in, sell_pro])
     else:
-    return pyomo.Constraint.Skip
+        return pyomo.Constraint.Skip
 
 
 # transmission
@@ -1211,7 +1211,7 @@ def res_global_co2_budget_rule(m):
         return (co2_output_sum <=
                 m.global_prop.loc[stf, 'CO2 budget']['value'])
     else:
-return pyomo.Constraint.Skip
+        return pyomo.Constraint.Skip
 
 
 # Objective

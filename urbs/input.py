@@ -156,27 +156,27 @@ def pyomo_model_prep(data, timesteps):
     m.stor_init_bound = m.stor_init_bound[m.stor_init_bound >= 0]
 
     # storages with fixed energy-to-power ratio
-    try:
-        m.sto_ep_ratio = m.storage['ep-ratio']
-        m.sto_ep_ratio = m.sto_ep_ratio[m.sto_ep_ratio >= 0]
-    except:
-        m.sto_ep_ratio = pd.DataFrame() 
+    # try:
+    #     m.sto_ep_ratio = m.storage['ep-ratio']
+    #     m.sto_ep_ratio = m.sto_ep_ratio[m.sto_ep_ratio >= 0]
+    # except:
+    #     m.sto_ep_ratio = pd.DataFrame() 
     
     # derive annuity factor from WACC and depreciation duration
     m.process['annuity-factor'] = (m.process.apply(lambda x:
-                                   annuity_factor(x['depreciation'],
+                                   invcost_factor(x['depreciation'],
                                                   x['wacc']),
                                    axis=1))
     try:
         m.transmission['annuity-factor'] = (m.transmission.apply(lambda x:
-                                            annuity_factor(x['depreciation'],
+                                            invcost_factor(x['depreciation'],
                                                            x['wacc']),
                                             axis=1))
     except ValueError:
         pass
     try:
         m.storage['annuity-factor'] = (m.storage.apply(lambda x:
-                                       annuity_factor(x['depreciation'],
+                                       invcost_factor(x['depreciation'],
                                                       x['wacc']),
                                        axis=1))
     except ValueError:
