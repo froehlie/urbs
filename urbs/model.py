@@ -5,7 +5,7 @@ from .modelhelper import *
 from .input import *
 
 
-def create_model(data, dt=1, timesteps=None, dual=False):
+def create_model(data, mode, dt=1, timesteps=None, dual=False):
     """Create a pyomo ConcreteModel urbs object from given input data.
 
     Args:
@@ -22,7 +22,7 @@ def create_model(data, dt=1, timesteps=None, dual=False):
     # Optional
     if not timesteps:
         timesteps = data['demand'].index.tolist()
-    m = pyomo_model_prep(data, timesteps)  # preparing pyomo model
+    m = pyomo_model_prep(data, mode, timesteps)  # preparing pyomo model
     m.name = 'urbs'
     m.created = datetime.now().strftime('%Y%m%dT%H%M')
     m._data = data
@@ -1016,7 +1016,7 @@ def res_sell_buy_symmetry_rule(m, stf, sit_in, pro_in, coin):
             return (m.cap_pro[stf, sit_in, pro_in] ==
                     m.cap_pro[stf, sit_in, sell_pro])
     else:
-    return pyomo.Constraint.Skip
+        return pyomo.Constraint.Skip
 
 
 # transmission
@@ -1211,7 +1211,7 @@ def res_global_co2_budget_rule(m):
         return (co2_output_sum <=
                 m.global_prop.loc[stf, 'CO2 budget']['value'])
     else:
-return pyomo.Constraint.Skip
+        return pyomo.Constraint.Skip
 
 
 # Objective
