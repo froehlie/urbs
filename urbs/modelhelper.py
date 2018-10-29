@@ -423,4 +423,4 @@ def search_sell_buy_tuple(instance, stf, sit_in, pro_in, coin):
         # check: buy - commodity == commodity - sell; for a site
         if not(sell_in.isdisjoint(buy_out)):
             return sell_pro
-return None
+    return None

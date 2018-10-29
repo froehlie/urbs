@@ -1231,7 +1231,8 @@ def def_costs_rule(m, cost_type):
       - Fuel costs for stock commodity purchase.
     """
     if cost_type == 'Invest':
-        return m.costs[cost_type] == \
+        
+        cost = \
             sum(m.cap_pro_new[p] *
                 m.process_dict['inv-cost'][p] *
                 m.process_dict['invcost-factor'][p]
@@ -1246,22 +1247,25 @@ def def_costs_rule(m, cost_type):
                 m.cap_sto_c_new[s] *
                 m.storage_dict['inv-cost-c'][s] *
                 m.storage_dict['invcost-factor'][s]
-                for s in m.sto_tuples) - \
-            sum(m.cap_pro_new[p] *
-                m.process_dict['inv-cost'][p] *
-                m.process_dict['overpay-factor'][p]
-                for p in m.pro_tuples) + \
-            sum(m.cap_tra_new[t] *
-                m.transmission_dict['inv-cost'][t] *
-                m.transmission_dict['overpay-factor'][t]
-                for t in m.tra_tuples) + \
-            sum(m.cap_sto_p_new[s] *
-                m.storage_dict['inv-cost-p'][s] *
-                m.storage_dict['overpay-factor'][s] +
-                m.cap_sto_c_new[s] *
-                m.storage_dict['inv-cost-c'][s] *
-                m.storage_dict['overpay-factor'][s]
                 for s in m.sto_tuples)
+        if m.mode['int']:
+            cost -= \
+                sum(m.cap_pro_new[p] *
+                    m.process_dict['inv-cost'][p] *
+                    m.process_dict['overpay-factor'][p]
+                    for p in m.pro_tuples) + \
+                sum(m.cap_tra_new[t] *
+                    m.transmission_dict['inv-cost'][t] *
+                    m.transmission_dict['overpay-factor'][t]
+                    for t in m.tra_tuples) + \
+                sum(m.cap_sto_p_new[s] *
+                    m.storage_dict['inv-cost-p'][s] *
+                    m.storage_dict['overpay-factor'][s] +
+                    m.cap_sto_c_new[s] *
+                    m.storage_dict['inv-cost-c'][s] *
+                    m.storage_dict['overpay-factor'][s]
+                    for s in m.sto_tuples)
+        return m.costs[cost_type] == cost
 
     elif cost_type == 'Fixed':
         return m.costs[cost_type] == \

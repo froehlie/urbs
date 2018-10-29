@@ -22,13 +22,13 @@ def identify_mode(input_files):
     # Set minimal mode as default
     tra_mod = sto_mod = dsm_mod = int_mod = False
     
-    # Intertemporal mode 
-    if len(input_files)>1:
-        int_mod = True
-    
+
     for filename in input_files:
         with pd.ExcelFile(filename) as xls:
-        # Transmission mode
+            # Intertemporal mode
+            if 'Support timeframe' in xls.parse('Global'):
+                int_mod = True
+            # Transmission mode
             if 'Transmission' in xls.sheet_names \
                 and not xls.parse('Transmission').set_index(['Site In', 'Site Out',
                                 'Transmission', 'Commodity']).empty:

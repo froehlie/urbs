@@ -6,7 +6,7 @@ import pyomo.core as pyomo
 from .modelhelper import *
 from .identify import identify_mode
 
-def read_input(input):
+def read_input(input_files):
     """Read Excel input file and prepare URBS input dict.
 
     Reads an Excel spreadsheet that adheres to the structure shown in
@@ -29,11 +29,13 @@ def read_input(input):
         >>> data['global_prop'].loc['CO2 limit', 'value']
         150000000
     """
-    if input == 'Input':
-        glob_input = os.path.join(input, '*.xlsx')
-        input = sorted(glob.glob(glob_input))
+    if input_files == 'Input':
+        glob_input = os.path.join(input_files, '*.xlsx')
+        input_files = sorted(glob.glob(glob_input))
+    else:
+        input_files = [input_files]
 
-    tra_mod, sto_mod, dsm_mod, int_mod = identify_mode(input)
+    tra_mod, sto_mod, dsm_mod, int_mod = identify_mode(input_files)
 
     if int_mod: 
         gl = []
@@ -49,8 +51,8 @@ def read_input(input):
         ds = []
         ef = [] 
         
-    for filename in input:
-        with pd.ExcelFile(input) as xls:
+    for filename in input_files:
+        with pd.ExcelFile(filename) as xls:
 
             sheetnames = xls.sheet_names
 
@@ -121,9 +123,10 @@ def read_input(input):
                     sto.append(storage)  
             if dsm_mod:
                 dsm = xls.parse('DSM').set_index(['Site', 'Commodity'])
-                dsm = pd.concat([dsm], keys=[support_timeframe],
-                                names=['support_timeframe'])
-                ds.append(dsm)
+                if int_mod:
+                    dsm = pd.concat([dsm], keys=[support_timeframe],
+                                    names=['support_timeframe'])
+                    ds.append(dsm)
 
     # prepare input data
     # split columns by dots '.', so that 'DE.Elec' becomes the two-level
@@ -204,8 +207,26 @@ def pyomo_model_prep(data, mode, timesteps):
     m.dsm = data['dsm']
     m.eff_factor = data['eff_factor']
 
+    if m.mode['int']:
+        # Create columns of support timeframe values
+        m.commodity['support_timeframe'] = (m.commodity.index.
+                                            get_level_values('support_timeframe'))
+        m.process['support_timeframe'] = (m.process.index.
+                                        get_level_values('support_timeframe'))
+        m.transmission['support_timeframe'] = (m.transmission.index.
+                                            get_level_values
+                                            ('support_timeframe'))
+        m.storage['support_timeframe'] = (m.storage.index.
+                                        get_level_values('support_timeframe'))
+        # installed units for intertemporal planning
+        m.inst_pro = m.process['inst-cap']
+        m.inst_pro = m.inst_pro[m.inst_pro > 0]
+        m.inst_tra = m.transmission['inst-cap']
+        m.inst_tra = m.inst_tra[m.inst_tra > 0]
+        m.inst_sto = m.storage['inst-cap-p']
+        m.inst_sto = m.inst_sto[m.inst_sto > 0]
+
     # Converting Data frames to dict
-    m.commodity_dict = m.commodity.to_dict()
     m.demand_dict = m.demand.to_dict()
     m.supim_dict = m.supim.to_dict()
     m.dsm_dict = m.dsm.to_dict()
@@ -251,31 +272,172 @@ def pyomo_model_prep(data, mode, timesteps):
     # except:
     #     m.sto_ep_ratio = pd.DataFrame() 
     
-    # derive annuity factor from WACC and depreciation duration
-    m.process['annuity-factor'] = (m.process.apply(lambda x:
-                                   invcost_factor(x['depreciation'],
-                                                  x['wacc']),
-                                   axis=1))
-    try:
-        m.transmission['annuity-factor'] = (m.transmission.apply(lambda x:
-                                            invcost_factor(x['depreciation'],
-                                                           x['wacc']),
-                                            axis=1))
-    except ValueError:
-        pass
-    try:
-        m.storage['annuity-factor'] = (m.storage.apply(lambda x:
+    # derive invcost factor from WACC and depreciation duration
+    if m.mode['int']:
+        # derive invest factor from WACC, depreciation and discount untility
+        m.process['discount'] = (m.global_prop.xs('Discount rate', level=1)
+                                .loc[m.global_prop.index.min()[0]]['value'])
+        m.process['stf_min'] = m.global_prop.index.min()[0]
+        m.process['stf_end'] = (m.global_prop.index.max()[0] +
+                                m.global_prop.loc[(max(m.commodity.
+                                                index.get_level_values
+                                                ('support_timeframe').unique()),
+                                                'Weight')]['value'] - 1)
+        m.process['invcost-factor'] = (m.process.apply(lambda x:
+                                    invcost_factor(x['depreciation'],
+                                                    x['wacc'],
+                                                    x['discount'],
+                                                    x['support_timeframe'],
+                                                    x['stf_min']),
+                                    axis=1))
+
+        # derive overpay-factor from WACC, depreciation and discount untility
+        m.process['overpay-factor'] = (m.process.apply(lambda x:
+                                    overpay_factor(x['depreciation'],
+                                                    x['wacc'],
+                                                    x['discount'],
+                                                    x['support_timeframe'],
+                                                    x['stf_min'],
+                                                    x['stf_end']),
+                                    axis=1))
+        m.process.loc[(m.process['overpay-factor'] < 0) |
+                    (m.process['overpay-factor']
+                     .isnull()), 'overpay-factor'] = 0
+
+        # Derive multiplier for all energy based costs
+        m.commodity['stf_dist'] = (m.commodity['support_timeframe'].
+                                apply(stf_dist, m=m))
+        m.commodity['discount-factor'] = (m.commodity['support_timeframe'].
+                                        apply(discount_factor, m=m))
+        m.commodity['eff-distance'] = (m.commodity['stf_dist'].
+                                    apply(effective_distance, m=m))
+        m.commodity['cost_factor'] = (m.commodity['discount-factor'] *
+                                    m.commodity['eff-distance'])
+        m.process['stf_dist'] = (m.process['support_timeframe']
+                                .apply(stf_dist, m=m))
+        m.process['discount-factor'] = (m.process['support_timeframe'].
+                                        apply(discount_factor, m=m))
+        m.process['eff-distance'] = (m.process['stf_dist'].
+                                    apply(effective_distance, m=m))
+        m.process['cost_factor'] = (m.process['discount-factor'] *
+                                    m.process['eff-distance'])
+
+        # transmission mode
+        if m.mode['tra']:
+            m.transmission['discount'] = (
+                m.global_prop.xs('Discount rate', level=1)
+                .loc[m.global_prop.index.min()[0]]['value'])
+            m.transmission['stf_min'] = m.global_prop.index.min()[0]
+            m.transmission['stf_end'] = (m.global_prop.index.max()[0] +
+                                        m.global_prop.loc[(max(m.commodity.
+                                                        index.get_level_values
+                                                        ('support_timeframe').
+                                                        unique()), 'Weight')]
+                                                        ['value'] - 1)            
+            try:
+                m.transmission['invcost-factor'] = (
+                    m.transmission.apply(lambda x:
+                                         invcost_factor(
+                                            x['depreciation'],
+                                            x['wacc'],
+                                            x['discount'],
+                                            x['support_timeframe'],
+                                            x['stf_min']),
+                                         axis=1))
+            except ValueError:
+                pass
+            try:
+                m.transmission['overpay-factor'] = (
+                    m.transmission.apply(lambda x:
+                                         overpay_factor(
+                                            x['depreciation'],
+                                            x['wacc'],
+                                            x['discount'],
+                                            x['support_timeframe'],
+                                            x['stf_min'],
+                                            x['stf_end']),
+                                         axis=1))
+            except ValueError:
+                pass
+            m.transmission.loc[(m.transmission['overpay-factor'] < 0) |
+                                (m.transmission['overpay-factor'].isnull()),
+                                'overpay-factor'] = 0
+            m.transmission['stf_dist'] = (m.transmission['support_timeframe'].
+                                        apply(stf_dist, m=m))
+            m.transmission['discount-factor'] = (
+                m.transmission['support_timeframe'].apply(discount_factor, m=m))
+            m.transmission['eff-distance'] = (m.transmission['stf_dist'].
+                                            apply(effective_distance, m=m))
+            m.transmission['cost_factor'] = (m.transmission['discount-factor'] *
+                                            m.transmission['eff-distance'])
+        # storage mode
+        if m.mode['sto']:
+            m.storage['discount'] = (m.global_prop.xs('Discount rate', level=1)
+                                    .loc[m.global_prop.index.min()[0]]['value'])
+            m.storage['stf_min'] = m.global_prop.index.min()[0]
+            m.storage['stf_end'] = (m.global_prop.index.max()[0] +
+                                    m.global_prop.loc[(max(m.commodity.
+                                                    index.get_level_values
+                                                    ('support_timeframe')
+                                                     .unique()),
+                                                     'Weight')]['value'] - 1)
+            m.storage['invcost-factor'] = (m.storage.apply(lambda x:
+                                        invcost_factor(x['depreciation'],
+                                                        x['wacc'],
+                                                        x['discount'],
+                                                        x['support_timeframe'],
+                                                        x['stf_min']),
+                                        axis=1))
+            try:
+                m.storage['overpay-factor'] = (
+                    m.storage.apply(lambda x:
+                                    overpay_factor(x['depreciation'],
+                                                   x['wacc'],
+                                                   x['discount'],
+                                                   x['support_timeframe'],
+                                                   x['stf_min'],
+                                                   x['stf_end']),
+                                    axis=1))
+
+                m.storage.loc[(m.storage['overpay-factor'] < 0) |
+                            (m.storage['overpay-factor'].isnull()),
+                            'overpay-factor'] = 0
+            except ValueError:
+                pass  
+            m.storage['stf_dist'] = (m.storage['support_timeframe']
+                                    .apply(stf_dist, m=m))
+            m.storage['discount-factor'] = (m.storage['support_timeframe'].
+                                            apply(discount_factor, m=m))
+            m.storage['eff-distance'] = (m.storage['stf_dist'].
+                                        apply(effective_distance, m=m))
+            m.storage['cost_factor'] = (m.storage['discount-factor'] *
+            m.storage['eff-distance']) 
+    else:
+        # for one year problems
+        m.process['invcost-factor'] = (m.process.apply(lambda x:
                                        invcost_factor(x['depreciation'],
                                                       x['wacc']),
                                        axis=1))
-    except ValueError:
-        pass
+        try:
+            m.transmission['invcost-factor'] = (
+                            m.transmission.apply(lambda x:
+                            invcost_factor(x['depreciation'],x['wacc']), 
+                            axis=1))
+        except ValueError:
+            pass
+        try:
+            m.storage['invcost-factor'] = (m.storage.apply(lambda x:
+                                        invcost_factor(x['depreciation'],
+                                                        x['wacc']),
+                                        axis=1))
+        except ValueError:
+            pass
 
     # Converting Data frames to dictionaries
-    #
-    m.process_dict = m.process.to_dict()  # Changed
-    m.transmission_dict = m.transmission.to_dict()  # Changed
-    m.storage_dict = m.storage.to_dict()  # Changed
+    m.commodity_dict = m.commodity.to_dict()
+    m.process_dict = m.process.to_dict()
+    m.transmission_dict = m.transmission.to_dict()
+    m.storage_dict = m.storage.to_dict()
     return m
 
 
