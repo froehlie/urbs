@@ -3,7 +3,7 @@ import pyomo.environ
 import time
 from pyomo.opt.base import SolverFactory
 from datetime import datetime
-from .model import *
+from .model import create_model
 from .report import *
 from .plot import *
 from .input import *
@@ -70,7 +70,7 @@ def run_scenario(input, Solver, timesteps, scenario, result_dir, dt,
 
     # scenario name, read and modify data for scenario
     sce = scenario.__name__
-    data = read_input(input)
+    data, mode = read_input(input)
     data = scenario(data)
     validate_input(data)
 
@@ -79,7 +79,7 @@ def run_scenario(input, Solver, timesteps, scenario, result_dir, dt,
     print("Time to read file: %.2f sec" % (read_time - start_time))
 
     # create model
-    prob = create_model(data, dt, timesteps)
+    prob = create_model(data, mode, dt, timesteps)
     # prob.write('model.lp', io_options={'symbolic_solver_labels':True})
 
     # measure time to create model

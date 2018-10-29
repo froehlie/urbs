@@ -197,7 +197,7 @@ def create_model(data, mode, dt=1, timesteps=None, dual=False):
         initialize=[(sit, sto, com, stf)
                     for (sit, sto, com, stf)
                     in inst_sto_tuples(m)],
-doc='Installed storages that are still operational through stf')
+        doc='Installed storages that are still operational through stf')
 
     # commodity type subsets
     m.com_supim = pyomo.Set(
@@ -647,7 +647,7 @@ doc='total co2 commodity output <= global.prop CO2 limit')
 # contains implicit constraints for process activity, import/export and
 # storage activity (calculated by function commodity_balance);
 # contains implicit constraint for stock commodity source term
-def res_vertex_rule(m, tm, sit, com, com_type):
+def res_vertex_rule(m, tm, stf, sit, com, com_type):
     # environmental or supim commodities don't have this constraint (yet)
     if com in m.com_env:
         return pyomo.Constraint.Skip
@@ -660,7 +660,7 @@ def res_vertex_rule(m, tm, sit, com, com_type):
     #                       amount of commodity com
     # if power_surplus < 0: production/storage/exports consume a net
     #                       amount of the commodity com
-    power_surplus = - commodity_balance(m, tm, sit, com)
+    power_surplus = - commodity_balance(m, tm, stf, sit, com)
 
     # if com is a stock commodity, the commodity source term e_co_stock
     # can supply a possibly negative power_surplus
