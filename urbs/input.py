@@ -3,6 +3,7 @@ import os
 import glob
 from xlrd import XLRDError
 import pyomo.core as pyomo
+from datetime import date
 from .modelhelper import *
 from .identify import identify_mode
 
@@ -37,96 +38,118 @@ def read_input(input_files):
 
     tra_mod, sto_mod, dsm_mod, int_mod = identify_mode(input_files)
 
-    if int_mod: 
-        gl = []
-        sit = []
-        com = []
-        pro = []
-        pro_com = []
-        tra = []
-        sto = []
-        dem = []
-        sup = []
-        bsp = []
-        ds = []
-        ef = [] 
+    gl = []
+    sit = []
+    com = []
+    pro = []
+    pro_com = []
+    tra = []
+    sto = []
+    dem = []
+    sup = []
+    bsp = []
+    ds = []
+    ef = [] 
         
     for filename in input_files:
         with pd.ExcelFile(filename) as xls:
 
             sheetnames = xls.sheet_names
-
-            site = xls.parse('Site').set_index(['Name'])
-            commodity = (xls.parse('Commodity')
-                            .set_index(['Site', 'Commodity', 'Type']))
-            process = xls.parse('Process').set_index(['Site', 'Process'])
-            process_commodity = (
-                xls.parse('Process-Commodity')
-                .set_index(['Process', 'Commodity', 'Direction']))
-            demand = xls.parse('Demand').set_index(['t'])
-            supim = xls.parse('SupIm').set_index(['t'])
-            buy_sell_price = xls.parse('Buy-Sell-Price').set_index(['t'])
-            if 'Global' in sheetnames:
-                global_prop = xls.parse('Global').set_index(['Property'])
-            else:
-                raise KeyError('Rename worksheet "Hacks" to "Global" \
-                                and the line "Global CO2 limit" into \
-                                "CO2 limit"!')
-            if 'TimeVarEff' in sheetnames:
-                eff_factor = xls.parse('TimeVarEff').set_index(['t'])
-                eff_factor.columns = split_columns(eff_factor.columns, '.')
-            else:
-                eff_factor = pd.DataFrame()
-
-            # collect data for the additional modes 
-            # Intertemporal,Transmission, Storage, DSM
+            
+            global_prop = xls.parse('Global').set_index(['Property'])
+            # create support timeframe index
             if int_mod:
                 support_timeframe = ( 
                     global_prop.loc['Support timeframe']['value'])
                 global_prop = (
-                    pd.concat([global_prop], keys=[support_timeframe],
-                              names=['support_timeframe']))
-                gl.append(global_prop)
-                site = pd.concat([site], keys=[support_timeframe],
-                                 names=['support_timeframe'])
-                sit.append(site)
-                commodity = pd.concat([commodity], keys=[support_timeframe],
-                                       names=['support_timeframe'])
-                com.append(commodity)
-                demand = pd.concat([demand], keys=[support_timeframe],
-                                   names=['support_timeframe'])
-                dem.append(demand)
-                supim = pd.concat([supim], keys=[support_timeframe],
+                    global_prop.drop(['Support timeframe'])
+                    .drop(['description'], axis=1))
+            else:
+                support_timeframe = date.today().year
+            print(support_timeframe)
+
+            global_prop = pd.concat([global_prop], keys=[support_timeframe],
+                                    names=['support_timeframe'])
+            gl.append(global_prop)
+            site = xls.parse('Site').set_index(['Name'])
+            site = pd.concat([site], keys=[support_timeframe],
+                             names=['support_timeframe'])
+            sit.append(site)
+            commodity = (
+                xls.parse('Commodity')
+                   .set_index(['Site', 'Commodity', 'Type']))
+            commodity = pd.concat([commodity], keys=[support_timeframe],
                                   names=['support_timeframe'])
-                sup.append(supim)
-                buy_sell_price = pd.concat([buy_sell_price],
-                                           keys=[support_timeframe],
-                                           names=['support_timeframe'])
-                bsp.append(buy_sell_price)
+            com.append(commodity)
+            process = xls.parse('Process').set_index(['Site', 'Process'])
+            process = pd.concat([process], keys=[support_timeframe],
+                                names=['support_timeframe'])
+            pro.append(process)
+            process_commodity = (
+                xls.parse('Process-Commodity')
+                   .set_index(['Process', 'Commodity', 'Direction']))
+            process_commodity = pd.concat([process_commodity],
+                                          keys=[support_timeframe],
+                                          names=['support_timeframe'])
+            pro_com.append(process_commodity)
+            transmission = (
+                xls.parse('Transmission')
+                   .set_index(['Site In', 'Site Out',
+                              'Transmission', 'Commodity']))
+            transmission = pd.concat([transmission], keys=[support_timeframe],
+                                     names=['support_timeframe'])
+            tra.append(transmission)
+            storage = (
+                xls.parse('Storage')
+                   .set_index(['Site', 'Storage', 'Commodity']))
+            storage = pd.concat([storage], keys=[support_timeframe],
+                                names=['support_timeframe'])
+            sto.append(storage)
+            demand = xls.parse('Demand').set_index(['t'])
+            demand = pd.concat([demand], keys=[support_timeframe],
+                               names=['support_timeframe'])
+            dem.append(demand)
+            supim = xls.parse('SupIm').set_index(['t'])
+            supim = pd.concat([supim], keys=[support_timeframe],
+                              names=['support_timeframe'])
+            sup.append(supim)
+            buy_sell_price = xls.parse('Buy-Sell-Price').set_index(['t'])
+            buy_sell_price = pd.concat([buy_sell_price],
+                                       keys=[support_timeframe],
+                                       names=['support_timeframe'])
+            bsp.append(buy_sell_price)
+            if 'TimeVarEff' in sheetnames:
+                eff_factor = (xls.parse('TimeVarEff').set_index(['t']))
+                eff_factor = pd.concat([eff_factor], keys=[support_timeframe],
+                                       names=['support_timeframe'])
+                eff_factor.columns = split_columns(eff_factor.columns, '.')
+                ef.append(eff_factor)
+            else:
+                eff_factor = pd.DataFrame()
+
+            # collect data for the additional modes 
+            # Transmission, Storage, DSM
             if tra_mod:
                 transmission = (
                     xls.parse('Transmission')
                     .set_index(['Site In', 'Site Out',
                                 'Transmission', 'Commodity']))
-                if int_mod:
-                    transmission = (
-                    pd.concat([transmission], keys=[support_timeframe],
-                              names=['support_timeframe']))
-                    tra.append(transmission)
+                transmission = (
+                pd.concat([transmission], keys=[support_timeframe],
+                            names=['support_timeframe']))
+                tra.append(transmission)
             if sto_mod:
                 storage = (
                     xls.parse('Storage')
                     .set_index(['Site', 'Storage', 'Commodity']))
-                if int_mod:
-                    storage = pd.concat([storage], keys=[support_timeframe],
-                                        names=['support_timeframe'])
-                    sto.append(storage)  
+                storage = pd.concat([storage], keys=[support_timeframe],
+                                    names=['support_timeframe'])
+                sto.append(storage)  
             if dsm_mod:
                 dsm = xls.parse('DSM').set_index(['Site', 'Commodity'])
-                if int_mod:
-                    dsm = pd.concat([dsm], keys=[support_timeframe],
-                                    names=['support_timeframe'])
-                    ds.append(dsm)
+                dsm = pd.concat([dsm], keys=[support_timeframe],
+                                names=['support_timeframe'])
+                ds.append(dsm)
 
     # prepare input data
     # split columns by dots '.', so that 'DE.Elec' becomes the two-level
@@ -136,35 +159,39 @@ def read_input(input_files):
     buy_sell_price.columns = split_columns(buy_sell_price.columns, '.')
 
     if int_mod:
-        data = {
-            'global_prop': pd.concat(gl),
-            'site': pd.concat(sit),
-            'commodity': pd.concat(com),
-            'process': pd.concat(pro),
-            'process_commodity': pd.concat(pro_com),
-            'transmission': pd.concat(tra),
-            'storage': pd.concat(sto),
-            'demand': pd.concat(dem),
-            'supim': pd.concat(sup),
-            'buy_sell_price': pd.concat(bsp),
-            'dsm': pd.concat(ds),
-            'eff_factor': pd.concat(ef)
-            }
-    else:
-        data = {
-            'global_prop': global_prop,
-            'site': site,
-            'commodity': commodity,
-            'process': process,
-            'process_commodity': process_commodity,
-            'transmission': transmission,
-            'storage': storage,
-            'demand': demand,
-            'supim': supim,
-            'buy_sell_price': buy_sell_price,
-            'dsm': dsm,
-            'eff_factor': eff_factor
-            }
+        global_prop = pd.concat(gl)
+        site = pd.concat(sit)
+        commodity = pd.concat(com)
+        process = pd.concat(pro)
+        process_commodity = pd.concat(pro_com)  
+        demand = pd.concat(dem)
+        supim = pd.concat(sup)
+        buy_sell_price = pd.concat(bsp)
+        eff_factor = pd.concat(ef)
+        if tra_mod:
+            transmission = pd.concat(tra)
+        if sto_mod:
+            storage = pd.concat(sto)
+        if dsm_mod:
+            dsm = pd.concat(ds)
+    
+    data = {
+        'global_prop': global_prop,
+        'site': site,
+        'commodity': commodity,
+        'process': process,
+        'process_commodity': process_commodity,
+        'demand': demand,
+        'supim': supim,
+        'buy_sell_price': buy_sell_price,
+        'eff_factor': eff_factor
+        }
+    if tra_mod:
+        data['transmission'] = transmission
+    if sto_mod:
+        data['storage'] = storage
+    if dsm_mod:
+        data['dsm'] = dsm        
 
     # save mode in dictionary
     mode = {
@@ -207,24 +234,25 @@ def pyomo_model_prep(data, mode, timesteps):
     m.dsm = data['dsm']
     m.eff_factor = data['eff_factor']
 
-    if m.mode['int']:
-        # Create columns of support timeframe values
-        m.commodity['support_timeframe'] = (m.commodity.index.
-                                            get_level_values('support_timeframe'))
-        m.process['support_timeframe'] = (m.process.index.
+    
+    # Create columns of support timeframe values
+    m.commodity['support_timeframe'] = (m.commodity.index.
                                         get_level_values('support_timeframe'))
-        m.transmission['support_timeframe'] = (m.transmission.index.
-                                            get_level_values
-                                            ('support_timeframe'))
-        m.storage['support_timeframe'] = (m.storage.index.
-                                        get_level_values('support_timeframe'))
-        # installed units for intertemporal planning
-        m.inst_pro = m.process['inst-cap']
-        m.inst_pro = m.inst_pro[m.inst_pro > 0]
-        m.inst_tra = m.transmission['inst-cap']
-        m.inst_tra = m.inst_tra[m.inst_tra > 0]
-        m.inst_sto = m.storage['inst-cap-p']
-        m.inst_sto = m.inst_sto[m.inst_sto > 0]
+    m.process['support_timeframe'] = (m.process.index.
+                                    get_level_values('support_timeframe'))
+    m.transmission['support_timeframe'] = (m.transmission.index.
+                                        get_level_values
+                                        ('support_timeframe'))
+    m.storage['support_timeframe'] = (m.storage.index.
+                                    get_level_values('support_timeframe'))
+    
+    # installed units for intertemporal planning
+    m.inst_pro = m.process['inst-cap']
+    m.inst_pro = m.inst_pro[m.inst_pro > 0]
+    m.inst_tra = m.transmission['inst-cap']
+    m.inst_tra = m.inst_tra[m.inst_tra > 0]
+    m.inst_sto = m.storage['inst-cap-p']
+    m.inst_sto = m.inst_sto[m.inst_sto > 0]
 
     # Converting Data frames to dict
     m.demand_dict = m.demand.to_dict()
@@ -312,7 +340,7 @@ def pyomo_model_prep(data, mode, timesteps):
         m.commodity['eff-distance'] = (m.commodity['stf_dist'].
                                     apply(effective_distance, m=m))
         m.commodity['cost_factor'] = (m.commodity['discount-factor'] *
-                                    m.commodity['eff-distance'])
+                                        m.commodity['eff-distance'])
         m.process['stf_dist'] = (m.process['support_timeframe']
                                 .apply(stf_dist, m=m))
         m.process['discount-factor'] = (m.process['support_timeframe'].
@@ -320,7 +348,8 @@ def pyomo_model_prep(data, mode, timesteps):
         m.process['eff-distance'] = (m.process['stf_dist'].
                                     apply(effective_distance, m=m))
         m.process['cost_factor'] = (m.process['discount-factor'] *
-                                    m.process['eff-distance'])
+                                        m.process['eff-distance'])
+
 
         # transmission mode
         if m.mode['tra']:
@@ -411,7 +440,7 @@ def pyomo_model_prep(data, mode, timesteps):
             m.storage['eff-distance'] = (m.storage['stf_dist'].
                                         apply(effective_distance, m=m))
             m.storage['cost_factor'] = (m.storage['discount-factor'] *
-            m.storage['eff-distance']) 
+                                        m.storage['eff-distance']) 
     else:
         # for one year problems
         m.process['invcost-factor'] = (m.process.apply(lambda x:
@@ -432,6 +461,12 @@ def pyomo_model_prep(data, mode, timesteps):
                                         axis=1))
         except ValueError:
             pass
+        
+        m.commodity['cost_factor'] = 1
+        m.process['cost_factor'] = 1
+        m.transmission['cost_factor'] = 1
+        m.storage['cost_factor'] = 1
+        
 
     # Converting Data frames to dictionaries
     m.commodity_dict = m.commodity.to_dict()

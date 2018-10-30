@@ -3,7 +3,6 @@ import pandas as pd
 import pyomo.environ
 import shutil
 import urbs
-from datetime import datetime
 from pyomo.opt.base import SolverFactory
 
 

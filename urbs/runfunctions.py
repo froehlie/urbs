@@ -72,7 +72,7 @@ def run_scenario(input, Solver, timesteps, scenario, result_dir, dt,
     sce = scenario.__name__
     data, mode = read_input(input)
     data = scenario(data)
-    validate_input(data)
+    # validate_input(data)
 
     # measure time to read file
     read_time = time.process_time()
