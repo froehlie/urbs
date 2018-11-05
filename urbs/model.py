@@ -5,7 +5,7 @@ from .modelhelper import *
 from .input import *
 
 
-def create_model(data, dt=1, timesteps=None, dual=False):
+def create_model(data, dt=1, timesteps=None, objective='cost', dual=False):
     """Create a pyomo ConcreteModel urbs object from given input data.
 
     Args:
@@ -45,6 +45,11 @@ def create_model(data, dt=1, timesteps=None, dual=False):
     m.dt = pyomo.Param(
         initialize=dt,
         doc='Time step duration (in hours), default: 1')
+
+    # import objective function information
+    m.obj = pyomo.Param(
+        initialize=objective,
+        doc='Specification of minimized quantity, default: "cost"')
 
     # Sets
     # ====
@@ -1349,5 +1354,32 @@ def def_costs_rule(m, cost_type):
         raise NotImplementedError("Unknown cost type.")
 
 
-def obj_rule(m):
+def cost_rule(m):
     return pyomo.summation(m.costs)
+
+
+# CO2 output in entire period <= Global CO2 budget
+def co2_rule(m):
+    co2_output_sum = 0
+    for stf in m.stf:
+        for tm in m.tm:
+            for sit in m.sit:
+                # minus because negative commodity_balance represents
+                # creation of that commodity.
+                co2_output_sum += (- commodity_balance
+                                   (m, tm, stf, sit, 'CO2') *
+                                   m.weight *
+                                   stf_dist(stf, m))
+
+    return (co2_output_sum)
+
+
+def res_global_cost_limit_rule(m):
+    if math.isinf(m.global_prop.loc[(min(m.stf), 'Cost budget'), 'value']):
+        return pyomo.Constraint.Skip
+    elif m.global_prop.loc[(min(m.stf), 'Cost budget'), 'value'] >= 0:
+        return(pyomo.summation(m.costs) <= m.global_prop.
+                                           loc[(min(m.stf), 'Cost budget'),
+                                               'value'])
+    else:
+        return pyomo.Constraint.skip
