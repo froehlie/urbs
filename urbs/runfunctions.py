@@ -44,7 +44,7 @@ def setup_solver(optim, logfile='solver.log'):
     return optim
 
 
-def run_scenario(input, Solver, timesteps, scenario, result_dir, dt,
+def run_scenario(input, Solver, timesteps, scenario, result_dir, dt, objective, 
                  plot_tuples=None,  plot_sites_name=None, plot_periods=None,
                  report_tuples=None, report_sites_name=None):
     """ run an urbs model for given input, time steps and scenario
@@ -79,7 +79,7 @@ def run_scenario(input, Solver, timesteps, scenario, result_dir, dt,
     print("Time to read file: %.2f sec" % (read_time - start_time))
 
     # create model
-    prob = create_model(data, mode, dt, timesteps)
+    prob = create_model(data, mode, dt, timesteps, objective)
     # prob.write('model.lp', io_options={'symbolic_solver_labels':True})
 
     # measure time to create model
