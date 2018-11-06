@@ -648,6 +648,17 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost', dual=Fals
         rule=res_dsm_recovery_rule,
         doc='DSMup(t, t + recovery time R) <= Cup * delay time L')
 
+    m.res_global_co2_limit = pyomo.Constraint(
+        m.stf,
+        rule=res_global_co2_limit_rule,
+        doc='total co2 commodity output <= global.prop CO2 limit')
+
+    # costs
+    m.def_costs = pyomo.Constraint(
+        m.cost_type,
+        rule=def_costs_rule,
+        doc='main cost function by cost type')
+
     # objective and global constraints
     if m.obj.value == 'cost':
         
@@ -1282,7 +1293,7 @@ def res_global_co2_budget_rule(m):
                                        stf_dist(stf, m))
 
         return (co2_output_sum <=
-                m.global_prop.loc[stf, 'CO2 budget']['value'])
+                m.global_prop.loc[m.stf, 'CO2 budget']['value'])
     else:
         return pyomo.Constraint.Skip
 
