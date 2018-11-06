@@ -3,6 +3,7 @@ import pandas as pd
 import pyomo.environ
 import shutil
 import urbs
+from datetime import datetime
 from pyomo.opt.base import SolverFactory
 
 
@@ -22,7 +23,7 @@ if __name__ == '__main__':
     objective = 'cost' # set either 'cost' or 'CO2' as objective
 
     # Choose Solver (cplex, glpk, gurobi, ...)
-    Solver = 'gurobi'
+    Solver = 'glpk'
 
     # simulation timesteps
     (offset, length) = (3500, 168)  # time step selection
@@ -73,12 +74,12 @@ if __name__ == '__main__':
 
     for scenario in scenarios:
         prob = urbs.run_scenario(input_file, Solver, timesteps, scenario, 
-                                 result_dir, dt, objective, 
-                                 plot_tuples=plot_tuples,
-                                 plot_sites_name=plot_sites_name,
-                                 plot_periods=plot_periods,
-                                 report_tuples=report_tuples,
-                                 report_sites_name=report_sites_name)
+                            result_dir, dt, objective, 
+                            plot_tuples=plot_tuples,
+                            plot_sites_name=plot_sites_name,
+                            plot_periods=plot_periods,
+                            report_tuples=report_tuples,
+                            report_sites_name=report_sites_name)
 
     # open timelog file
     os.startfile(os.path.join(result_dir, "timelog.txt"))
