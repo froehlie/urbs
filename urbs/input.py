@@ -232,7 +232,7 @@ def pyomo_model_prep(data, timesteps):
     # storges with fixed initial state
     m.stor_init_bound = m.storage['init']
     m.stor_init_bound = m.stor_init_bound[m.stor_init_bound >= 0]
-   
+
     # derive invest factor from WACC, depreciation and discount untility
     m.process['discount'] = (m.global_prop.xs('Discount rate', level=1)
                              .loc[m.global_prop.index.min()[0]]['value'])

@@ -304,7 +304,7 @@ def create_model(data, dt=1, timesteps=None, objective='cost', dual=False):
         within=m.stf*m.sit*m.sto*m.com,
         initialize=m.stor_init_bound.index,
         doc='storages with fixed initial state')
-        
+
     # Variables
 
     # costs
@@ -617,19 +617,43 @@ def create_model(data, dt=1, timesteps=None, objective='cost', dual=False):
         rule=res_global_co2_limit_rule,
         doc='total co2 commodity output <= global.prop CO2 limit')
 
-    m.res_global_co2_budget = pyomo.Constraint(
-        rule=res_global_co2_budget_rule,
-        doc='total co2 commodity output <= global.prop CO2 limit')
-
     # costs
     m.def_costs = pyomo.Constraint(
         m.cost_type,
         rule=def_costs_rule,
         doc='main cost function by cost type')
-    m.obj = pyomo.Objective(
-        rule=obj_rule,
-        sense=pyomo.minimize,
-        doc='minimize(cost = sum of all cost types)')
+
+    # objective and global constraints
+    if m.obj.value == 'cost':
+
+        m.res_global_co2_budget = pyomo.Constraint(
+            rule=res_global_co2_budget_rule,
+            doc='total co2 commodity output <= global.prop CO2 budget')
+
+        m.objective_function = pyomo.Objective(
+            rule=cost_rule,
+            sense=pyomo.minimize,
+            doc='minimize(cost = sum of all cost types)')
+
+    elif m.obj.value == 'CO2':
+
+        m.res_global_cost_limit = pyomo.Constraint(
+            rule=res_global_cost_limit_rule,
+            doc='total costs <= Global cost limit')
+
+        m.objective_function = pyomo.Objective(
+            rule=co2_rule,
+            sense=pyomo.minimize,
+            doc='minimize total CO2 emissions')
+
+    else:
+        raise NotImplementedError("Non-implemented objective quantity. Set "
+                                  "either 'cost' or 'CO2' as the objective in "
+                                  "runme.py!")
+
+    if dual:
+        m.dual = pyomo.Suffix(direction=pyomo.Suffix.IMPORT)
+    return m
 
     if dual:
         m.dual = pyomo.Suffix(direction=pyomo.Suffix.IMPORT)
@@ -1163,8 +1187,8 @@ def res_initial_and_final_storage_state_rule(m, t, stf, sit, sto, com):
 def res_initial_and_final_storage_state_var_rule(m, t, stf, sit, sto, com):
     return (m.e_sto_con[m.t[1], stf, sit, sto, com] <=
             m.e_sto_con[m.t[len(m.t)], stf, sit, sto, com])
-     
-     
+
+
 # total CO2 output <= Global CO2 limit
 def res_global_co2_limit_rule(m, stf):
     if math.isinf(m.global_prop.loc[stf, 'CO2 limit']['value']):
@@ -1204,7 +1228,7 @@ def res_global_co2_budget_rule(m):
                                        stf_dist(stf, m))
 
         return (co2_output_sum <=
-                m.global_prop.loc[stf, 'CO2 budget']['value'])
+                m.global_prop.loc[m.stf, 'CO2 budget']['value'])
     else:
         return pyomo.Constraint.Skip
 
