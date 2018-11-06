@@ -67,6 +67,7 @@ def read_input(input_files):
             else:
                 support_timeframe = date.today().year
             print(support_timeframe)
+            print(type(support_timeframe))
 
             global_prop = pd.concat([global_prop], keys=[support_timeframe],
                                     names=['support_timeframe'])

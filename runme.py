@@ -42,8 +42,8 @@ if __name__ == '__main__':
 
     # detailed reporting commodity/sites
     report_tuples = [
-        ('North', 'Elec'), ('Mid', 'Elec'), ('South', 'Elec'),
-        ('North', 'CO2'), ('Mid', 'CO2'), ('South', 'CO2')]
+        ('2018','North', 'Elec'), ('2018','Mid', 'Elec'), ('2018','South', 'Elec'),
+        ('2018','North', 'CO2'), ('2018','Mid', 'CO2'), ('2018','South', 'CO2')]
 
     # optional: define names for sites in report_tuples
     report_sites_name = {'North': 'Greenland'}

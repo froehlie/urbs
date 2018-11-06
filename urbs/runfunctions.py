@@ -72,7 +72,7 @@ def run_scenario(input, Solver, timesteps, scenario, result_dir, dt, objective,
     sce = scenario.__name__
     data, mode = read_input(input)
     data = scenario(data)
-    # validate_input(data)
+    validate_input(data)
 
     # measure time to read file
     read_time = time.process_time()
@@ -80,7 +80,7 @@ def run_scenario(input, Solver, timesteps, scenario, result_dir, dt, objective,
 
     # create model
     prob = create_model(data, mode, dt, timesteps, objective)
-    prob.write('model.lp', io_options={'symbolic_solver_labels':True})
+    # prob.write('model.lp', io_options={'symbolic_solver_labels':True})
 
     # measure time to create model
     model_time = time.process_time()
