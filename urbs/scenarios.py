@@ -17,6 +17,7 @@ def scenario_stock_prices(data):
 def scenario_co2_limit(data):
     # change global CO2 limit
     global_prop = data['global_prop']
+    import pdb; pdb.set_trace()
     global_prop.loc['CO2 limit', 'value'] *= 0.05
     return data
 

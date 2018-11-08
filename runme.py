@@ -32,18 +32,18 @@ if __name__ == '__main__':
 
     # plotting commodities/sites
     plot_tuples = [
-        ('North', 'Elec'),
-        ('Mid', 'Elec'),
-        ('South', 'Elec'),
-        (['North', 'Mid', 'South'], 'Elec')]
+        (2018, 'North', 'Elec'),
+        (2018, 'Mid', 'Elec'),
+        (2018, 'South', 'Elec'),
+        (2018, ['North', 'Mid', 'South'], 'Elec')]
 
     # optional: define names for sites in plot_tuples
     plot_sites_name = {('North', 'Mid', 'South'): 'All'}
 
     # detailed reporting commodity/sites
     report_tuples = [
-        ('2018','North', 'Elec'), ('2018','Mid', 'Elec'), ('2018','South', 'Elec'),
-        ('2018','North', 'CO2'), ('2018','Mid', 'CO2'), ('2018','South', 'CO2')]
+        (2018,'North', 'Elec'), (2018,'Mid', 'Elec'), (2018,'South', 'Elec'),
+        (2018,'North', 'CO2'), (2018,'Mid', 'CO2'), (2018,'South', 'CO2')]
 
     # optional: define names for sites in report_tuples
     report_sites_name = {'North': 'Greenland'}
@@ -64,12 +64,12 @@ if __name__ == '__main__':
     # select scenarios to be run
     scenarios = [
         urbs.scenario_base,
-        urbs.scenario_stock_prices,
-        urbs.scenario_co2_limit,
-        urbs.scenario_co2_tax_mid,
-        urbs.scenario_no_dsm,
-        urbs.scenario_north_process_caps,
-        urbs.scenario_all_together
+        # urbs.scenario_stock_prices,
+        # urbs.scenario_co2_limit
+        # urbs.scenario_co2_tax_mid,
+        # urbs.scenario_no_dsm,
+        # urbs.scenario_north_process_caps,
+        # urbs.scenario_all_together
         ]
 
     for scenario in scenarios:
