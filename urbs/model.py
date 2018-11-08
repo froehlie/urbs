@@ -622,37 +622,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost', dual=Fals
         # rule=def_storage_energy_power_ratio_rule,
         # doc='storage capacity = storage power * storage E2P ratio')
 
-    # demand side management
-    m.def_dsm_variables = pyomo.Constraint(
-        m.tm, m.dsm_site_tuples,
-        rule=def_dsm_variables_rule,
-        doc='DSMup * efficiency factor n == DSMdo (summed)')
-
-    m.res_dsm_upward = pyomo.Constraint(
-        m.tm, m.dsm_site_tuples,
-        rule=res_dsm_upward_rule,
-        doc='DSMup <= Cup (threshold capacity of DSMup)')
-
-    m.res_dsm_downward = pyomo.Constraint(
-        m.tm, m.dsm_site_tuples,
-        rule=res_dsm_downward_rule,
-        doc='DSMdo (summed) <= Cdo (threshold capacity of DSMdo)')
-
-    m.res_dsm_maximum = pyomo.Constraint(
-        m.tm, m.dsm_site_tuples,
-        rule=res_dsm_maximum_rule,
-        doc='DSMup + DSMdo (summed) <= max(Cup,Cdo)')
-
-    m.res_dsm_recovery = pyomo.Constraint(
-        m.tm, m.dsm_site_tuples,
-        rule=res_dsm_recovery_rule,
-        doc='DSMup(t, t + recovery time R) <= Cup * delay time L')
-
-    m.res_global_co2_limit = pyomo.Constraint(
-        m.stf,
-        rule=res_global_co2_limit_rule,
-        doc='total co2 commodity output <= global.prop CO2 limit')
-
     # costs
     m.def_costs = pyomo.Constraint(
         m.cost_type,
@@ -689,9 +658,42 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost', dual=Fals
                                   "either 'cost' or 'CO2' as the objective in "
                                   "runme.py!")
 
+    # demand side management
+    m.def_dsm_variables = pyomo.Constraint(
+        m.tm, m.dsm_site_tuples,
+        rule=def_dsm_variables_rule,
+        doc='DSMup * efficiency factor n == DSMdo (summed)')
+
+    m.res_dsm_upward = pyomo.Constraint(
+        m.tm, m.dsm_site_tuples,
+        rule=res_dsm_upward_rule,
+        doc='DSMup <= Cup (threshold capacity of DSMup)')
+
+    m.res_dsm_downward = pyomo.Constraint(
+        m.tm, m.dsm_site_tuples,
+        rule=res_dsm_downward_rule,
+        doc='DSMdo (summed) <= Cdo (threshold capacity of DSMdo)')
+
+    m.res_dsm_maximum = pyomo.Constraint(
+        m.tm, m.dsm_site_tuples,
+        rule=res_dsm_maximum_rule,
+        doc='DSMup + DSMdo (summed) <= max(Cup,Cdo)')
+
+    m.res_dsm_recovery = pyomo.Constraint(
+        m.tm, m.dsm_site_tuples,
+        rule=res_dsm_recovery_rule,
+        doc='DSMup(t, t + recovery time R) <= Cup * delay time L')
+
+    m.res_global_co2_limit = pyomo.Constraint(
+        m.stf,
+        rule=res_global_co2_limit_rule,
+        doc='total co2 commodity output <= global.prop CO2 limit')
+
     if dual:
         m.dual = pyomo.Suffix(direction=pyomo.Suffix.IMPORT)
-        return m
+    
+    return m
+    
 
 
 # Constraints
