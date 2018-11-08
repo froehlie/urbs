@@ -228,12 +228,12 @@ if __name__ == '__main__':
     # select scenarios to be run
     scenarios = [
         scenario_base,
-        scenario_stock_prices,
-        scenario_co2_limit,
-        scenario_co2_tax_mid,
-        scenario_no_dsm,
-        scenario_north_process_caps,
-        scenario_all_together
+        # scenario_stock_prices,
+        # scenario_co2_limit,
+        # scenario_co2_tax_mid,
+        # scenario_no_dsm,
+        # scenario_north_process_caps,
+        # scenario_all_together
         ]
 
     for scenario in scenarios:
