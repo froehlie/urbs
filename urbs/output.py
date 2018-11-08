@@ -112,6 +112,7 @@ def get_timeseries(instance, stf, com, sites, timesteps=None):
 
     # PROCESS
     created = get_entity(instance, 'e_pro_out')
+    print(created)
     created = created.xs([stf, com], level=['stf', 'com']).loc[timesteps]
     try:
         created = created.unstack(level='sit')[sites].fillna(0).sum(axis=1)

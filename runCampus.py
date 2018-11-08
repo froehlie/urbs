@@ -19,7 +19,7 @@ result_dir = urbs.prepare_result_directory(result_name) # name + time stamp
 objective = 'cost' # set either 'cost' or 'CO2' as objective
 
 # Choose Solver (cplex, glpk, gurobi, ...)
-Solver = 'gurobi'
+Solver = 'glpk'
 
 # simulation timesteps
 (offset, length) = (3000, 168)  # time step selection
