@@ -127,6 +127,7 @@ def run_scenario(input_file, timesteps, scenario, result_dir, dt,
 
     # create model
     prob = urbs.create_model(data, dt, timesteps)
+    prob.write('model.lp', io_options={'symbolic_solver_labels':True})
 
     # measure time to create model
     model_time = time.process_time()
