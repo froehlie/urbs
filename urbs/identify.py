@@ -26,16 +26,18 @@ def identify_mode(input_files):
     for filename in input_files:
         with pd.ExcelFile(filename) as xls:
             # Intertemporal mode
-            if 'Support timeframe' in xls.parse('Global'):
+            if 'Support timeframe' in xls.parse('Global') \
+                                            .set_index('Property').value:
                 int_mod = True
             # Transmission mode
             if 'Transmission' in xls.sheet_names \
-                and not xls.parse('Transmission').set_index(['Site In', 'Site Out',
-                                'Transmission', 'Commodity']).empty:
+                and not xls.parse('Transmission').set_index(['Site In', 
+                                'Site Out', 'Transmission', 'Commodity']).empty:
                 tra_mod = True
             # Storage mode
             if 'Storage' in xls.sheet_names \
-            and not xls.parse('Storage').set_index(['Site', 'Storage', 'Commodity']).empty:
+            and not xls.parse('Storage').set_index(['Site', 'Storage', 
+                                                    'Commodity']).empty:
                 sto_mod = True
             # Demand side management mode
             if 'DSM' in xls.sheet_names \

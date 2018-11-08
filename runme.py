@@ -10,12 +10,14 @@ from pyomo.opt.base import SolverFactory
 
 
 if __name__ == '__main__':
-    input_file = 'mimo-example.xlsx'
-    result_name = os.path.splitext(input_file)[0]  # cut away file extension
+    input_file = 'Input'
+    result_name = 'Intertemporal'
+    # problem without Input folder
+    # result_name = os.path.splitext(input_file)[0]  # cut away file extension
     result_dir = urbs.prepare_result_directory(result_name)  # name + time stamp
 
     # copy input file to result directory
-    shutil.copyfile(input_file, os.path.join(result_dir, input_file))
+    # shutil.copyfile(input_file, os.path.join(result_dir, input_file))
     # copy runme.py to result directory
     shutil.copy(__file__, result_dir)
 
