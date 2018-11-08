@@ -691,10 +691,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost', dual=Fals
 
     if dual:
         m.dual = pyomo.Suffix(direction=pyomo.Suffix.IMPORT)
-    return m
-
-    if dual:
-        m.dual = pyomo.Suffix(direction=pyomo.Suffix.IMPORT)
         return m
 
 
