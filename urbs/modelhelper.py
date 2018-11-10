@@ -134,7 +134,7 @@ def commodity_balance(m, tm, stf, sit, com):
                    # exports increase balance
                    for stframe, site_in, site_out, transmission, commodity
                    in m.tra_tuples
-                   if site_in == sit and stframe == stf and commodity == com) +
+                   if site_in == sit and stframe == stf and commodity == com) -
                sum(m.e_tra_out[(tm, stframe, site_in, site_out, transmission,
                                com)]
                    # imports decrease balance
