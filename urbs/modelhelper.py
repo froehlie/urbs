@@ -124,26 +124,29 @@ def commodity_balance(m, tm, stf, sit, com):
                    # output from processes decreases balance
                    for stframe, site, process in m.pro_tuples
                    if site == sit and stframe == stf and
-                   (stframe, process, com) in m.r_out_dict) +
-               sum(m.e_tra_in[(tm, stframe, site_in, site_out, transmission,
-                              com)]
-                   # exports increase balance
-                   for stframe, site_in, site_out, transmission, commodity
-                   in m.tra_tuples
-                   if site_in == sit and stframe == stf and commodity == com) -
-               sum(m.e_tra_out[(tm, stframe, site_in, site_out, transmission,
-                               com)]
-                   # imports decrease balance
-                   for stframe, site_in, site_out, transmission, commodity
-                   in m.tra_tuples
-                   if site_out == sit and stframe == stf and
-                   commodity == com) +
-               sum(m.e_sto_in[(tm, stframe, site, storage, com)] -
-                   m.e_sto_out[(tm, stframe, site, storage, com)]
-                   # usage as input for storage increases consumption
-                   # output from storage decreases consumption
-                   for stframe, site, storage, commodity in m.sto_tuples
-                   if site == sit and stframe == stf and commodity == com))
+                   (stframe, process, com) in m.r_out_dict))
+    if m.mode['tra']:
+        balance += (sum(m.e_tra_in[(tm, stframe, site_in, site_out, 
+                                    transmission, com)]
+                        # exports increase balance
+                        for stframe, site_in, site_out, transmission, commodity
+                        in m.tra_tuples
+                        if ( site_in == sit and stframe == stf 
+                                and commodity ) == com) -
+                    sum(m.e_tra_out[(tm, stframe, site_in, site_out, 
+                                     transmission, com)]
+                        # imports decrease balance
+                        for stframe, site_in, site_out, transmission, commodity
+                        in m.tra_tuples
+                        if site_out == sit and stframe == stf and
+                        commodity == com))
+    if m.mode['sto']:    
+        balance +=  sum(m.e_sto_in[(tm, stframe, site, storage, com)] -
+                        m.e_sto_out[(tm, stframe, site, storage, com)]
+                        # usage as input for storage increases consumption
+                        # output from storage decreases consumption
+                        for stframe, site, storage, commodity in m.sto_tuples
+                        if site == sit and stframe == stf and commodity == com)
     return balance
 
 

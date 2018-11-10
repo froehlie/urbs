@@ -5,7 +5,8 @@ from .modelhelper import *
 from .input import *
 
 
-def create_model(data, mode, dt=1, timesteps=None, objective = 'cost', dual=False):
+def create_model(data, mode, dt=1, timesteps=None, objective = 'cost', 
+                 dual=False):
     """Create a pyomo ConcreteModel urbs object from given input data.
 
     Args:
@@ -106,15 +107,17 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost', dual=Fals
         doc='Set of conversion processes')
 
     # tranmission (e.g. hvac, hvdc, pipeline...)
-    m.tra = pyomo.Set(
-        initialize=m.transmission.index.get_level_values('Transmission')
-                                       .unique(),
-        doc='Set of transmission technologies')
+    if m.mode['tra']:
+        m.tra = pyomo.Set(
+            initialize=m.transmission.index.get_level_values('Transmission')
+                                        .unique(),
+            doc='Set of transmission technologies')
 
     # storage (e.g. hydrogen, pump storage)
-    m.sto = pyomo.Set(
-        initialize=m.storage.index.get_level_values('Storage').unique(),
-        doc='Set of storage technologies')
+    if m.mode['sto']:
+        m.sto = pyomo.Set(
+            initialize=m.storage.index.get_level_values('Storage').unique(),
+            doc='Set of storage technologies')
 
     # cost_type
     m.cost_type = pyomo.Set(
@@ -135,29 +138,63 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost', dual=Fals
         within=m.stf*m.sit*m.pro,
         initialize=m.process.index,
         doc='Combinations of possible processes, e.g. (2020,North,Coal plant)')
-    m.tra_tuples = pyomo.Set(
-        within=m.stf*m.sit*m.sit*m.tra*m.com,
-        initialize=m.transmission.index,
-        doc='Combinations of possible transmissions, e.g. '
-            '(2020,South,Mid,hvac,Elec)')
-    m.sto_tuples = pyomo.Set(
-        within=m.stf*m.sit*m.sto*m.com,
-        initialize=m.storage.index,
-        doc='Combinations of possible storage by site,'
-            'e.g. (2020,Mid,Bat,Elec)')
-    m.dsm_site_tuples = pyomo.Set(
-        within=m.stf*m.sit*m.com,
-        initialize=m.dsm.index,
-        doc='Combinations of possible dsm by site, e.g. (2020, Mid, Elec)')
-    m.dsm_down_tuples = pyomo.Set(
-        within=m.tm*m.tm*m.stf*m.sit*m.com,
-        initialize=[(t, tt, stf, site, commodity)
-                    for (t, tt, stf, site, commodity)
-                    in dsm_down_time_tuples(m.timesteps[1:],
-                                            m.dsm_site_tuples,
-                                            m)],
-        doc='Combinations of possible dsm_down combinations, e.g. '
-            '(5001,5003,2020,Mid,Elec)')
+    if m.mode['tra']:
+        m.tra_tuples = pyomo.Set(
+            within=m.stf*m.sit*m.sit*m.tra*m.com,
+            initialize=m.transmission.index,
+            doc='Combinations of possible transmissions, e.g. '
+                '(2020,South,Mid,hvac,Elec)')
+        if m.mode['int']:
+            m.operational_tra_tuples = pyomo.Set(
+                within=m.sit*m.sit*m.tra*m.com*m.stf*m.stf,
+                initialize=[(sit, sit_, tra, com, stf, stf_later)
+                            for (sit, sit_, tra, com, stf, stf_later)
+                            in op_tra_tuples(m.tra_tuples, m)],
+                doc='Transmissions that are still operational through stf_later'
+                    '(and the relevant years following), if built in stf'
+                    'in stf.')
+            m.inst_tra_tuples = pyomo.Set(
+                within=m.sit*m.sit*m.tra*m.com*m.stf,
+                initialize=[(sit, sit_, tra, com, stf)
+                            for (sit, sit_, tra, com, stf)
+                            in inst_tra_tuples(m)],
+                doc='Installed transmissions that are still operational' 
+                    'through stf')
+    if m.mode['sto']:
+        m.sto_tuples = pyomo.Set(
+            within=m.stf*m.sit*m.sto*m.com,
+            initialize=m.storage.index,
+            doc='Combinations of possible storage by site,'
+                'e.g. (2020,Mid,Bat,Elec)')
+        if m.mode['int']:
+            m.operational_sto_tuples = pyomo.Set(
+                within=m.sit*m.sto*m.com*m.stf*m.stf,
+                initialize=[(sit, sto, com, stf, stf_later)
+                            for (sit, sto, com, stf, stf_later)
+                            in op_sto_tuples(m.sto_tuples, m)],
+                doc='Processes that are still operational through stf_later'
+                    '(and the relevant years following), if built in stf'
+                    'in stf.')
+            m.inst_sto_tuples = pyomo.Set(
+                within=m.sit*m.sto*m.com*m.stf,
+                initialize=[(sit, sto, com, stf)
+                            for (sit, sto, com, stf)
+                            in inst_sto_tuples(m)],
+                doc='Installed storages that are still operational through stf')
+    if m.mode['dsm']:
+        m.dsm_site_tuples = pyomo.Set(
+            within=m.stf*m.sit*m.com,
+            initialize=m.dsm.index,
+            doc='Combinations of possible dsm by site, e.g. (2020, Mid, Elec)')
+        m.dsm_down_tuples = pyomo.Set(
+            within=m.tm*m.tm*m.stf*m.sit*m.com,
+            initialize=[(t, tt, stf, site, commodity)
+                        for (t, tt, stf, site, commodity)
+                        in dsm_down_time_tuples(m.timesteps[1:],
+                                                m.dsm_site_tuples,
+                                                m)],
+            doc='Combinations of possible dsm_down combinations, e.g. '
+                '(5001,5003,2020,Mid,Elec)')
 
     if m.mode['int']:
         # tuples for operational status of technologies
@@ -169,22 +206,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost', dual=Fals
             doc='Processes that are still operational through stf_later'
                 '(and the relevant years following), if built in stf'
                 'in stf.')
-        m.operational_tra_tuples = pyomo.Set(
-            within=m.sit*m.sit*m.tra*m.com*m.stf*m.stf,
-            initialize=[(sit, sit_, tra, com, stf, stf_later)
-                        for (sit, sit_, tra, com, stf, stf_later)
-                        in op_tra_tuples(m.tra_tuples, m)],
-            doc='Transmissions that are still operational through stf_later'
-                '(and the relevant years following), if built in stf'
-                'in stf.')
-        m.operational_sto_tuples = pyomo.Set(
-            within=m.sit*m.sto*m.com*m.stf*m.stf,
-            initialize=[(sit, sto, com, stf, stf_later)
-                        for (sit, sto, com, stf, stf_later)
-                        in op_sto_tuples(m.sto_tuples, m)],
-            doc='Processes that are still operational through stf_later'
-                '(and the relevant years following), if built in stf'
-                'in stf.')
 
         # tuples for rest lifetime of installed capacities of technologies
         m.inst_pro_tuples = pyomo.Set(
@@ -193,19 +214,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost', dual=Fals
                         for (sit, pro, stf)
                         in inst_pro_tuples(m)],
             doc='Installed processes that are still operational through stf')
-        m.inst_tra_tuples = pyomo.Set(
-            within=m.sit*m.sit*m.tra*m.com*m.stf,
-            initialize=[(sit, sit_, tra, com, stf)
-                        for (sit, sit_, tra, com, stf)
-                        in inst_tra_tuples(m)],
-            doc='Installed transmissions that are still operational through'
-                'stf')
-        m.inst_sto_tuples = pyomo.Set(
-            within=m.sit*m.sto*m.com*m.stf,
-            initialize=[(sit, sto, com, stf)
-                        for (sit, sto, com, stf)
-                        in inst_sto_tuples(m)],
-            doc='Installed storages that are still operational through stf')
+
 
     # commodity type subsets
     m.com_supim = pyomo.Set(
@@ -358,62 +367,65 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost', dual=Fals
         doc='Power flow out of process (MW) per timestep')
 
     # transmission
-    m.cap_tra = pyomo.Var(
-        m.tra_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='Total transmission capacity (MW)')
-    m.cap_tra_new = pyomo.Var(
-        m.tra_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='New transmission capacity (MW)')
-    m.e_tra_in = pyomo.Var(
-        m.tm, m.tra_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='Power flow into transmission line (MW) per timestep')
-    m.e_tra_out = pyomo.Var(
-        m.tm, m.tra_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='Power flow out of transmission line (MW) per timestep')
+    if m.mode['tra']:
+        m.cap_tra = pyomo.Var(
+            m.tra_tuples,
+            within=pyomo.NonNegativeReals,
+            doc='Total transmission capacity (MW)')
+        m.cap_tra_new = pyomo.Var(
+            m.tra_tuples,
+            within=pyomo.NonNegativeReals,
+            doc='New transmission capacity (MW)')
+        m.e_tra_in = pyomo.Var(
+            m.tm, m.tra_tuples,
+            within=pyomo.NonNegativeReals,
+            doc='Power flow into transmission line (MW) per timestep')
+        m.e_tra_out = pyomo.Var(
+            m.tm, m.tra_tuples,
+            within=pyomo.NonNegativeReals,
+            doc='Power flow out of transmission line (MW) per timestep')
 
     # storage
-    m.cap_sto_c = pyomo.Var(
-        m.sto_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='Total storage size (MWh)')
-    m.cap_sto_c_new = pyomo.Var(
-        m.sto_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='New storage size (MWh)')
-    m.cap_sto_p = pyomo.Var(
-        m.sto_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='Total storage power (MW)')
-    m.cap_sto_p_new = pyomo.Var(
-        m.sto_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='New  storage power (MW)')
-    m.e_sto_in = pyomo.Var(
-        m.tm, m.sto_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='Power flow into storage (MW) per timestep')
-    m.e_sto_out = pyomo.Var(
-        m.tm, m.sto_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='Power flow out of storage (MW) per timestep')
-    m.e_sto_con = pyomo.Var(
-        m.t, m.sto_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='Energy content of storage (MWh) in timestep')
+    if m.mode['sto']:
+        m.cap_sto_c = pyomo.Var(
+            m.sto_tuples,
+            within=pyomo.NonNegativeReals,
+            doc='Total storage size (MWh)')
+        m.cap_sto_c_new = pyomo.Var(
+            m.sto_tuples,
+            within=pyomo.NonNegativeReals,
+            doc='New storage size (MWh)')
+        m.cap_sto_p = pyomo.Var(
+            m.sto_tuples,
+            within=pyomo.NonNegativeReals,
+            doc='Total storage power (MW)')
+        m.cap_sto_p_new = pyomo.Var(
+            m.sto_tuples,
+            within=pyomo.NonNegativeReals,
+            doc='New  storage power (MW)')
+        m.e_sto_in = pyomo.Var(
+            m.tm, m.sto_tuples,
+            within=pyomo.NonNegativeReals,
+            doc='Power flow into storage (MW) per timestep')
+        m.e_sto_out = pyomo.Var(
+            m.tm, m.sto_tuples,
+            within=pyomo.NonNegativeReals,
+            doc='Power flow out of storage (MW) per timestep')
+        m.e_sto_con = pyomo.Var(
+            m.t, m.sto_tuples,
+            within=pyomo.NonNegativeReals,
+            doc='Energy content of storage (MWh) in timestep')
 
     # demand side management
-    m.dsm_up = pyomo.Var(
-        m.tm, m.dsm_site_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='DSM upshift')
-    m.dsm_down = pyomo.Var(
-        m.dsm_down_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='DSM downshift')
+    if m.mode['dsm']:
+        m.dsm_up = pyomo.Var(
+            m.tm, m.dsm_site_tuples,
+            within=pyomo.NonNegativeReals,
+            doc='DSM upshift')
+        m.dsm_down = pyomo.Var(
+            m.dsm_down_tuples,
+            within=pyomo.NonNegativeReals,
+            doc='DSM downshift')
 
     # Equation declarations
     # equation bodies are defined in separate functions, referred to here by
@@ -536,91 +548,93 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost', dual=Fals
         doc='e_pro_out = tau_pro * r_out * eff_factor')
 
     # transmission
-    if m.mode['int']:
-        m.def_int_transmission_capacity = pyomo.Constraint(
+    if m.mode['tra']:
+        if m.mode['int']:
+            m.def_int_transmission_capacity = pyomo.Constraint(
+                m.tra_tuples,
+                rule=def_int_transmission_capacity_rule,
+                doc='total transmission capacity = inst-cap + new capacity')
+        else:
+            m.def_transmission_capacity = pyomo.Constraint(
+                m.tra_tuples,
+                rule=def_transmission_capacity_rule,
+                doc='total transmission capacity = inst-cap + new capacity')
+        m.def_transmission_output = pyomo.Constraint(
+            m.tm, m.tra_tuples,
+            rule=def_transmission_output_rule,
+            doc='transmission output = transmission input * efficiency')
+        m.res_transmission_input_by_capacity = pyomo.Constraint(
+            m.tm, m.tra_tuples,
+            rule=res_transmission_input_by_capacity_rule,
+            doc='transmission input <= total transmission capacity')
+        m.res_transmission_capacity = pyomo.Constraint(
             m.tra_tuples,
-            rule=def_int_transmission_capacity_rule,
-            doc='total transmission capacity = inst-cap + new capacity')
-    else:
-        m.def_transmission_capacity = pyomo.Constraint(
+            rule=res_transmission_capacity_rule,
+            doc='transmission.cap-lo <= total transmission capacity <= '
+                'transmission.cap-up')
+        m.res_transmission_symmetry = pyomo.Constraint(
             m.tra_tuples,
-            rule=def_transmission_capacity_rule,
-            doc='total transmission capacity = inst-cap + new capacity')
-    m.def_transmission_output = pyomo.Constraint(
-        m.tm, m.tra_tuples,
-        rule=def_transmission_output_rule,
-        doc='transmission output = transmission input * efficiency')
-    m.res_transmission_input_by_capacity = pyomo.Constraint(
-        m.tm, m.tra_tuples,
-        rule=res_transmission_input_by_capacity_rule,
-        doc='transmission input <= total transmission capacity')
-    m.res_transmission_capacity = pyomo.Constraint(
-        m.tra_tuples,
-        rule=res_transmission_capacity_rule,
-        doc='transmission.cap-lo <= total transmission capacity <= '
-            'transmission.cap-up')
-    m.res_transmission_symmetry = pyomo.Constraint(
-        m.tra_tuples,
-        rule=res_transmission_symmetry_rule,
-        doc='total transmission capacity must be symmetric in both directions')
+            rule=res_transmission_symmetry_rule,
+            doc='total transmission capacity must be symmetric in both directions')
 
     # storage
-    m.def_storage_state = pyomo.Constraint(
-        m.tm, m.sto_tuples,
-        rule=def_storage_state_rule,
-        doc='storage[t] = (1 - sd) * storage[t-1] + in * eff_i - out / eff_o')
-    if m.mode['int']:
-        m.def_int_storage_power = pyomo.Constraint(
+    if m.mode['sto']:
+        m.def_storage_state = pyomo.Constraint(
+            m.tm, m.sto_tuples,
+            rule=def_storage_state_rule,
+            doc='storage[t] = (1 - sd) * storage[t-1] + in * eff_i - out / eff_o')
+        if m.mode['int']:
+            m.def_int_storage_power = pyomo.Constraint(
+                m.sto_tuples,
+                rule=def_int_storage_power_rule,
+                doc='storage power = inst-cap + new power')
+        else:
+            m.def_storage_power = pyomo.Constraint(
+                m.sto_tuples,
+                rule=def_storage_power_rule,
+                doc='storage power = inst-cap + new power')            
+        if m.mode['int']:
+            m.def_int_storage_capacity = pyomo.Constraint(
+                m.sto_tuples,
+                rule=def_int_storage_capacity_rule,
+                doc='storage capacity = inst-cap + new capacity')
+        else:
+            m.def_storage_capacity = pyomo.Constraint(
+                m.sto_tuples,
+                rule=def_storage_capacity_rule,
+                doc='storage capacity = inst-cap + new capacity')
+        m.res_storage_input_by_power = pyomo.Constraint(
+            m.tm, m.sto_tuples,
+            rule=res_storage_input_by_power_rule,
+            doc='storage input <= storage power')
+        m.res_storage_output_by_power = pyomo.Constraint(
+            m.tm, m.sto_tuples,
+            rule=res_storage_output_by_power_rule,
+            doc='storage output <= storage power')
+        m.res_storage_state_by_capacity = pyomo.Constraint(
+            m.t, m.sto_tuples,
+            rule=res_storage_state_by_capacity_rule,
+            doc='storage content <= storage capacity')
+        m.res_storage_power = pyomo.Constraint(
             m.sto_tuples,
-            rule=def_int_storage_power_rule,
-            doc='storage power = inst-cap + new power')
-    else:
-        m.def_storage_power = pyomo.Constraint(
+            rule=res_storage_power_rule,
+            doc='storage.cap-lo-p <= storage power <= storage.cap-up-p')
+        m.res_storage_capacity = pyomo.Constraint(
             m.sto_tuples,
-            rule=def_storage_power_rule,
-            doc='storage power = inst-cap + new power')            
-    if m.mode['int']:
-        m.def_int_storage_capacity = pyomo.Constraint(
-            m.sto_tuples,
-            rule=def_int_storage_capacity_rule,
-            doc='storage capacity = inst-cap + new capacity')
-    else:
-        m.def_storage_capacity = pyomo.Constraint(
-            m.sto_tuples,
-            rule=def_storage_capacity_rule,
-            doc='storage capacity = inst-cap + new capacity')
-    m.res_storage_input_by_power = pyomo.Constraint(
-        m.tm, m.sto_tuples,
-        rule=res_storage_input_by_power_rule,
-        doc='storage input <= storage power')
-    m.res_storage_output_by_power = pyomo.Constraint(
-        m.tm, m.sto_tuples,
-        rule=res_storage_output_by_power_rule,
-        doc='storage output <= storage power')
-    m.res_storage_state_by_capacity = pyomo.Constraint(
-        m.t, m.sto_tuples,
-        rule=res_storage_state_by_capacity_rule,
-        doc='storage content <= storage capacity')
-    m.res_storage_power = pyomo.Constraint(
-        m.sto_tuples,
-        rule=res_storage_power_rule,
-        doc='storage.cap-lo-p <= storage power <= storage.cap-up-p')
-    m.res_storage_capacity = pyomo.Constraint(
-        m.sto_tuples,
-        rule=res_storage_capacity_rule,
-        doc='storage.cap-lo-c <= storage capacity <= storage.cap-up-c')
-    m.res_initial_and_final_storage_state = pyomo.Constraint(
-        m.t, m.sto_init_bound_tuples,
-        rule=res_initial_and_final_storage_state_rule,
-        doc='storage content initial == and final >= storage.init * capacity')
-    m.res_initial_and_final_storage_state_var = pyomo.Constraint(
-        m.t, m.sto_tuples - m.sto_init_bound_tuples,
-        rule=res_initial_and_final_storage_state_var_rule,
-        doc='storage content initial <= final, both variable')
-    # m.def_storage_energy_power_ratio = pyomo.Constraint(
-        # m.sto_ep_ratio_tuples,
-        # rule=def_storage_energy_power_ratio_rule,
-        # doc='storage capacity = storage power * storage E2P ratio')
+            rule=res_storage_capacity_rule,
+            doc='storage.cap-lo-c <= storage capacity <= storage.cap-up-c')
+        m.res_initial_and_final_storage_state = pyomo.Constraint(
+            m.t, m.sto_init_bound_tuples,
+            rule=res_initial_and_final_storage_state_rule,
+            doc='storage content initial == and final >= storage.init * capacity')
+        m.res_initial_and_final_storage_state_var = pyomo.Constraint(
+            m.t, m.sto_tuples - m.sto_init_bound_tuples,
+            rule=res_initial_and_final_storage_state_var_rule,
+            doc='storage content initial <= final, both variable')
+        # m.def_storage_energy_power_ratio = pyomo.Constraint(
+            # m.sto_ep_ratio_tuples,
+            # rule=def_storage_energy_power_ratio_rule,
+            # doc='storage capacity = storage power * storage E2P ratio')
 
     # costs
     m.def_costs = pyomo.Constraint(
@@ -659,30 +673,31 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost', dual=Fals
                                   "runme.py!")
 
     # demand side management
-    m.def_dsm_variables = pyomo.Constraint(
-        m.tm, m.dsm_site_tuples,
-        rule=def_dsm_variables_rule,
-        doc='DSMup * efficiency factor n == DSMdo (summed)')
+    if m.mode['dsm']:
+        m.def_dsm_variables = pyomo.Constraint(
+            m.tm, m.dsm_site_tuples,
+            rule=def_dsm_variables_rule,
+            doc='DSMup * efficiency factor n == DSMdo (summed)')
 
-    m.res_dsm_upward = pyomo.Constraint(
-        m.tm, m.dsm_site_tuples,
-        rule=res_dsm_upward_rule,
-        doc='DSMup <= Cup (threshold capacity of DSMup)')
+        m.res_dsm_upward = pyomo.Constraint(
+            m.tm, m.dsm_site_tuples,
+            rule=res_dsm_upward_rule,
+            doc='DSMup <= Cup (threshold capacity of DSMup)')
 
-    m.res_dsm_downward = pyomo.Constraint(
-        m.tm, m.dsm_site_tuples,
-        rule=res_dsm_downward_rule,
-        doc='DSMdo (summed) <= Cdo (threshold capacity of DSMdo)')
+        m.res_dsm_downward = pyomo.Constraint(
+            m.tm, m.dsm_site_tuples,
+            rule=res_dsm_downward_rule,
+            doc='DSMdo (summed) <= Cdo (threshold capacity of DSMdo)')
 
-    m.res_dsm_maximum = pyomo.Constraint(
-        m.tm, m.dsm_site_tuples,
-        rule=res_dsm_maximum_rule,
-        doc='DSMup + DSMdo (summed) <= max(Cup,Cdo)')
+        m.res_dsm_maximum = pyomo.Constraint(
+            m.tm, m.dsm_site_tuples,
+            rule=res_dsm_maximum_rule,
+            doc='DSMup + DSMdo (summed) <= max(Cup,Cdo)')
 
-    m.res_dsm_recovery = pyomo.Constraint(
-        m.tm, m.dsm_site_tuples,
-        rule=res_dsm_recovery_rule,
-        doc='DSMup(t, t + recovery time R) <= Cup * delay time L')
+        m.res_dsm_recovery = pyomo.Constraint(
+            m.tm, m.dsm_site_tuples,
+            rule=res_dsm_recovery_rule,
+            doc='DSMup(t, t + recovery time R) <= Cup * delay time L')
 
     m.res_global_co2_limit = pyomo.Constraint(
         m.stf,
@@ -745,18 +760,18 @@ def res_vertex_rule(m, tm, stf, sit, com, com_type):
     # if com is a demand commodity, the power_surplus is reduced by the
     # demand value; no scaling by m.dt or m.weight is needed here, as this
     # constraint is about power (MW), not energy (MWh)
-    if (stf, sit, com) in m.dsm_site_tuples:
-        power_surplus -= m.dsm_up[tm, stf, sit, com]
-        power_surplus += sum(m.dsm_down[t, tm, stf, sit, com]
-                             for t in dsm_time_tuples(
-                                 tm, m.timesteps[1:],
-                                 max(int(1 / m.dt *
-                                     m.dsm_dict['delay'][(stf, sit, com)]),
-                                     1)))
+    if m.mode['dsm']:
+        if (stf, sit, com) in m.dsm_site_tuples:
+            power_surplus -= m.dsm_up[tm, stf, sit, com]
+            power_surplus += sum(m.dsm_down[t, tm, stf, sit, com]
+                                for t in dsm_time_tuples(
+                                    tm, m.timesteps[1:],
+                                    max(int(1 / m.dt *
+                                        m.dsm_dict['delay'][(stf, sit, com)]),
+                                        1)))
     return power_surplus == 0
 
 # demand side management (DSM) constraints
-
 
 # DSMup == DSMdo * efficiency factor n
 def def_dsm_variables_rule(m, tm, stf, sit, com):
@@ -1318,70 +1333,88 @@ def def_costs_rule(m, cost_type):
             sum(m.cap_pro_new[p] *
                 m.process_dict['inv-cost'][p] *
                 m.process_dict['invcost-factor'][p]
-                for p in m.pro_tuples) + \
-            sum(m.cap_tra_new[t] *
-                m.transmission_dict['inv-cost'][t] *
-                m.transmission_dict['invcost-factor'][t]
-                for t in m.tra_tuples) + \
-            sum(m.cap_sto_p_new[s] *
-                m.storage_dict['inv-cost-p'][s] *
-                m.storage_dict['invcost-factor'][s] +
-                m.cap_sto_c_new[s] *
-                m.storage_dict['inv-cost-c'][s] *
-                m.storage_dict['invcost-factor'][s]
-                for s in m.sto_tuples)
+                for p in m.pro_tuples)
+        if m.mode['tra']:
+            cost += \
+                sum(m.cap_tra_new[t] *
+                    m.transmission_dict['inv-cost'][t] *
+                    m.transmission_dict['invcost-factor'][t]
+                    for t in m.tra_tuples)
+        if m.mode['sto']:
+            cost += \
+                sum(m.cap_sto_p_new[s] *
+                    m.storage_dict['inv-cost-p'][s] *
+                    m.storage_dict['invcost-factor'][s] +
+                    m.cap_sto_c_new[s] *
+                    m.storage_dict['inv-cost-c'][s] *
+                    m.storage_dict['invcost-factor'][s]
+                    for s in m.sto_tuples)
         if m.mode['int']:
             cost -= \
                 sum(m.cap_pro_new[p] *
                     m.process_dict['inv-cost'][p] *
                     m.process_dict['overpay-factor'][p]
-                    for p in m.pro_tuples) + \
-                sum(m.cap_tra_new[t] *
-                    m.transmission_dict['inv-cost'][t] *
-                    m.transmission_dict['overpay-factor'][t]
-                    for t in m.tra_tuples) + \
-                sum(m.cap_sto_p_new[s] *
-                    m.storage_dict['inv-cost-p'][s] *
-                    m.storage_dict['overpay-factor'][s] +
-                    m.cap_sto_c_new[s] *
-                    m.storage_dict['inv-cost-c'][s] *
-                    m.storage_dict['overpay-factor'][s]
-                    for s in m.sto_tuples)
+                    for p in m.pro_tuples)
+            if m.mode['tra']:
+                cost += \
+                    sum(m.cap_tra_new[t] *
+                        m.transmission_dict['inv-cost'][t] *
+                        m.transmission_dict['overpay-factor'][t]
+                        for t in m.tra_tuples)
+            if m.mode['sto']:
+                cost += \
+                    sum(m.cap_sto_p_new[s] *
+                        m.storage_dict['inv-cost-p'][s] *
+                        m.storage_dict['overpay-factor'][s] +
+                        m.cap_sto_c_new[s] *
+                        m.storage_dict['inv-cost-c'][s] *
+                        m.storage_dict['overpay-factor'][s]
+                        for s in m.sto_tuples)
         return m.costs[cost_type] == cost
 
     elif cost_type == 'Fixed':
-        return m.costs[cost_type] == \
+        cost = \
             sum(m.cap_pro[p] * m.process_dict['fix-cost'][p] *
                 m.process_dict['cost_factor'][p]
-                for p in m.pro_tuples) + \
-            sum(m.cap_tra[t] * m.transmission_dict['fix-cost'][t] *
-                m.transmission_dict['cost_factor'][t]
-                for t in m.tra_tuples) + \
-            sum((m.cap_sto_p[s] * m.storage_dict['fix-cost-p'][s] +
-                m.cap_sto_c[s] * m.storage_dict['fix-cost-c'][s]) *
-                m.storage_dict['cost_factor'][s]
-                for s in m.sto_tuples)
+                for p in m.pro_tuples)
+        if m.mode['tra']:
+            cost += \
+                sum(m.cap_tra[t] * m.transmission_dict['fix-cost'][t] *
+                    m.transmission_dict['cost_factor'][t]
+                    for t in m.tra_tuples)
+        if m.mode['sto']:
+            cost += \
+                sum((m.cap_sto_p[s] * m.storage_dict['fix-cost-p'][s] +
+                    m.cap_sto_c[s] * m.storage_dict['fix-cost-c'][s]) *
+                    m.storage_dict['cost_factor'][s]
+                    for s in m.sto_tuples)
+        return m.costs[cost_type] == cost
 
     elif cost_type == 'Variable':
-        return m.costs[cost_type] == \
+        cost = \
             sum(m.tau_pro[(tm,) + p] * m.weight *
                 m.process_dict['var-cost'][p] *
                 m.process_dict['cost_factor'][p]
                 for tm in m.tm
-                for p in m.pro_tuples) + \
-            sum(m.e_tra_in[(tm,) + t] * m.weight *
-                m.transmission_dict['var-cost'][t] *
-                m.transmission_dict['cost_factor'][t]
-                for tm in m.tm
-                for t in m.tra_tuples) + \
-            sum(m.e_sto_con[(tm,) + s] * m.weight *
-                m.storage_dict['var-cost-c'][s] *
-                m.storage_dict['cost_factor'][s] +
-                (m.e_sto_in[(tm,) + s] + m.e_sto_out[(tm,) + s]) *
-                m.weight * m.storage_dict['var-cost-p'][s] *
-                m.storage_dict['cost_factor'][s]
-                for tm in m.tm
-                for s in m.sto_tuples)
+                for p in m.pro_tuples)
+        if m.mode['tra']:
+            cost += \
+                sum(m.e_tra_in[(tm,) + t] * m.weight *
+                    m.transmission_dict['var-cost'][t] *
+                    m.transmission_dict['cost_factor'][t]
+                    for tm in m.tm
+                    for t in m.tra_tuples)
+        if m.mode['sto']:
+            cost += \
+                sum(m.e_sto_con[(tm,) + s] * m.weight *
+                    m.storage_dict['var-cost-c'][s] *
+                    m.storage_dict['cost_factor'][s] +
+                    (m.e_sto_in[(tm,) + s] + m.e_sto_out[(tm,) + s]) *
+                    m.weight * m.storage_dict['var-cost-p'][s] *
+                    m.storage_dict['cost_factor'][s]
+                    for tm in m.tm
+                    for s in m.sto_tuples)
+        return m.costs[cost_type] == cost
 
     elif cost_type == 'Fuel':
         return m.costs[cost_type] == sum(

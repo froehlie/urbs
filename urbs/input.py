@@ -93,19 +93,6 @@ def read_input(input_files):
                                           keys=[support_timeframe],
                                           names=['support_timeframe'])
             pro_com.append(process_commodity)
-            transmission = (
-                xls.parse('Transmission')
-                   .set_index(['Site In', 'Site Out',
-                              'Transmission', 'Commodity']))
-            transmission = pd.concat([transmission], keys=[support_timeframe],
-                                     names=['support_timeframe'])
-            tra.append(transmission)
-            storage = (
-                xls.parse('Storage')
-                   .set_index(['Site', 'Storage', 'Commodity']))
-            storage = pd.concat([storage], keys=[support_timeframe],
-                                names=['support_timeframe'])
-            sto.append(storage)
             demand = xls.parse('Demand').set_index(['t'])
             demand = pd.concat([demand], keys=[support_timeframe],
                                names=['support_timeframe'])
@@ -152,12 +139,12 @@ def read_input(input_files):
                                 names=['support_timeframe'])
                 ds.append(dsm)
 
-    # prepare input data
-    # split columns by dots '.', so that 'DE.Elec' becomes the two-level
-    # column index ('DE', 'Elec')
-    demand.columns = split_columns(demand.columns, '.')
-    supim.columns = split_columns(supim.columns, '.')
-    buy_sell_price.columns = split_columns(buy_sell_price.columns, '.')
+        # prepare input data
+        # split columns by dots '.', so that 'DE.Elec' becomes the two-level
+        # column index ('DE', 'Elec')
+        demand.columns = split_columns(demand.columns, '.')
+        supim.columns = split_columns(supim.columns, '.')
+        buy_sell_price.columns = split_columns(buy_sell_price.columns, '.')
 
     if int_mod:
         global_prop = pd.concat(gl)
@@ -221,44 +208,51 @@ def pyomo_model_prep(data, mode, timesteps):
     #
 
     m.mode = mode
-    m.global_prop = data['global_prop'].drop('description', axis=1)
+    m.global_prop = data['global_prop']
     m.site = data['site']
     m.commodity = data['commodity']
     m.process = data['process']
     m.process_commodity = data['process_commodity']
-    m.transmission = data['transmission']
-    m.storage = data['storage']
     m.demand = data['demand']
     m.supim = data['supim']
     m.buy_sell_price = data['buy_sell_price']
     m.timesteps = timesteps
-    m.dsm = data['dsm']
     m.eff_factor = data['eff_factor']
-
+    if m.mode['tra']:
+        m.transmission = data['transmission']
+    if m.mode['sto']:
+        m.storage = data['storage']
+    if m.mode['dsm']:
+        m.dsm = data['dsm']
     
     # Create columns of support timeframe values
     m.commodity['support_timeframe'] = (m.commodity.index.
                                         get_level_values('support_timeframe'))
     m.process['support_timeframe'] = (m.process.index.
                                     get_level_values('support_timeframe'))
-    m.transmission['support_timeframe'] = (m.transmission.index.
+    if m.mode['tra']:
+        m.transmission['support_timeframe'] = (m.transmission.index.
                                         get_level_values
                                         ('support_timeframe'))
-    m.storage['support_timeframe'] = (m.storage.index.
+    if m.mode['sto']:
+        m.storage['support_timeframe'] = (m.storage.index.
                                     get_level_values('support_timeframe'))
     
     # installed units for intertemporal planning
     m.inst_pro = m.process['inst-cap']
     m.inst_pro = m.inst_pro[m.inst_pro > 0]
-    m.inst_tra = m.transmission['inst-cap']
-    m.inst_tra = m.inst_tra[m.inst_tra > 0]
-    m.inst_sto = m.storage['inst-cap-p']
-    m.inst_sto = m.inst_sto[m.inst_sto > 0]
+    if m.mode['tra']:
+        m.inst_tra = m.transmission['inst-cap']
+        m.inst_tra = m.inst_tra[m.inst_tra > 0]
+    if m.mode['sto']:
+        m.inst_sto = m.storage['inst-cap-p']
+        m.inst_sto = m.inst_sto[m.inst_sto > 0]
 
     # Converting Data frames to dict
     m.demand_dict = m.demand.to_dict()
     m.supim_dict = m.supim.to_dict()
-    m.dsm_dict = m.dsm.to_dict()
+    if m.mode['dsm']:
+        m.dsm_dict = m.dsm.to_dict()
     m.buy_sell_price_dict = m.buy_sell_price.to_dict()
     m.eff_factor_dict = m.eff_factor.to_dict()
 
@@ -472,8 +466,10 @@ def pyomo_model_prep(data, mode, timesteps):
     # Converting Data frames to dictionaries
     m.commodity_dict = m.commodity.to_dict()
     m.process_dict = m.process.to_dict()
-    m.transmission_dict = m.transmission.to_dict()
-    m.storage_dict = m.storage.to_dict()
+    if m.mode['tra']:
+        m.transmission_dict = m.transmission.to_dict()
+    if m.mode['sto']:
+        m.storage_dict = m.storage.to_dict()
     return m
 
 
