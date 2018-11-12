@@ -87,7 +87,6 @@ def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt, objec
     print("Time to create model: %.2f sec" % (model_time - read_time))
 
     # refresh time stamp string and create filename for logfile
-    now = prob.created
     log_filename = os.path.join(result_dir, '{}.log').format(sce)
 
     # solve model and read results

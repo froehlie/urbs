@@ -754,7 +754,7 @@ def res_vertex_rule(m, tm, stf, sit, com, com_type):
     # constraint is about power (MW), not energy (MWh)
     if com in m.com_demand:
         try:
-            power_surplus -= m.demand_dict[(sit, com)][stf, tm]
+            power_surplus -= m.demand_dict[(sit, com)][(stf, tm)]
         except KeyError:
             pass
     # if com is a demand commodity, the power_surplus is reduced by the
@@ -1268,7 +1268,7 @@ def res_initial_and_final_storage_state_var_rule(m, t, stf, sit, sto, com):
             # m.cap_sto_p[sit, sto, com] * m.storage_dict['ep-ratio'][(sit, sto, com)])
             
 # total CO2 output <= Global CO2 limit
-def res_global_co2_limit_rule(m,stf):
+def res_global_co2_limit_rule(m, stf):
     if math.isinf(m.global_prop.loc[stf, 'CO2 limit']['value']):
         return pyomo.Constraint.Skip
     elif m.global_prop.loc[stf, 'CO2 limit']['value'] >= 0:
