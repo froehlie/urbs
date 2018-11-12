@@ -43,5 +43,6 @@ def identify_mode(input_files):
             if 'DSM' in xls.sheet_names \
             and not xls.parse('DSM').set_index(['Site', 'Commodity']).empty:
                 dsm_mod = True
-    print(tra_mod,sto_mod,dsm_mod,int_mod)
+    print ("Activated modes:\r\nTransmission: %s\r\nStorage: %s\r\nDSM: %s"
+           "\r\nIntertemporal: %s" % (tra_mod, sto_mod, dsm_mod, int_mod))
     return tra_mod,sto_mod,dsm_mod,int_mod
