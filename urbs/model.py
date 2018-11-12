@@ -1356,13 +1356,13 @@ def def_costs_rule(m, cost_type):
                     m.process_dict['overpay-factor'][p]
                     for p in m.pro_tuples)
             if m.mode['tra']:
-                cost += \
+                cost -= \
                     sum(m.cap_tra_new[t] *
                         m.transmission_dict['inv-cost'][t] *
                         m.transmission_dict['overpay-factor'][t]
                         for t in m.tra_tuples)
             if m.mode['sto']:
-                cost += \
+                cost -= \
                     sum(m.cap_sto_p_new[s] *
                         m.storage_dict['inv-cost-p'][s] *
                         m.storage_dict['overpay-factor'][s] +
