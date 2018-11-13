@@ -113,6 +113,15 @@ for country, color in my_colors.items():
 # select scenarios to be run
 scenarios = [
              urbs.scenario_base,
+             urbs.scenario_base,
+             urbs.scenario_base,
+             urbs.scenario_base,
+             urbs.scenario_base,
+             urbs.scenario_base,
+             urbs.scenario_base,
+             urbs.scenario_base,
+             urbs.scenario_base,
+             urbs.scenario_base,
              # urbs.sc_CO2limit(40000),
              # urbs.sc_1proprop('Campus', 'PV S 30°', 'inv-cost', 600000)
 ]
