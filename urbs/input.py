@@ -36,8 +36,6 @@ def read_input(input_files):
     else:
         input_files = [input_files]
 
-    tra_mod, sto_mod, dsm_mod, int_mod = identify_mode(input_files)
-
     gl = []
     sit = []
     com = []
@@ -50,15 +48,19 @@ def read_input(input_files):
     bsp = []
     ds = []
     ef = [] 
-        
+
+    # get mode
+    mode = identify_mode(input_files[0])  
+    print ("mode: ",mode) 
+
     for filename in input_files:
+        # identify mode of input_file
         with pd.ExcelFile(filename) as xls:
 
             sheetnames = xls.sheet_names
-            
             global_prop = xls.parse('Global').set_index(['Property'])
             # create support timeframe index
-            if int_mod:
+            if mode['int']:
                 support_timeframe = ( 
                     global_prop.loc['Support timeframe']['value'])
                 global_prop = (
@@ -115,7 +117,7 @@ def read_input(input_files):
 
             # collect data for the additional modes 
             # Transmission, Storage, DSM
-            if tra_mod:
+            if mode['tra']:
                 transmission = (
                     xls.parse('Transmission')
                     .set_index(['Site In', 'Site Out',
@@ -124,14 +126,14 @@ def read_input(input_files):
                 pd.concat([transmission], keys=[support_timeframe],
                             names=['support_timeframe']))
                 tra.append(transmission)
-            if sto_mod:
+            if mode['sto']:
                 storage = (
                     xls.parse('Storage')
                     .set_index(['Site', 'Storage', 'Commodity']))
                 storage = pd.concat([storage], keys=[support_timeframe],
                                     names=['support_timeframe'])
                 sto.append(storage)  
-            if dsm_mod:
+            if mode['dsm']:
                 dsm = xls.parse('DSM').set_index(['Site', 'Commodity'])
                 dsm = pd.concat([dsm], keys=[support_timeframe],
                                 names=['support_timeframe'])
@@ -144,7 +146,7 @@ def read_input(input_files):
         supim.columns = split_columns(supim.columns, '.')
         buy_sell_price.columns = split_columns(buy_sell_price.columns, '.')
 
-    if int_mod:
+    if mode['int']:
         global_prop = pd.concat(gl)
         site = pd.concat(sit)
         commodity = pd.concat(com)
@@ -154,11 +156,11 @@ def read_input(input_files):
         supim = pd.concat(sup)
         buy_sell_price = pd.concat(bsp)
         eff_factor = pd.concat(ef)
-        if tra_mod:
+        if mode['tra']:
             transmission = pd.concat(tra)
-        if sto_mod:
+        if mode['sto']:
             storage = pd.concat(sto)
-        if dsm_mod:
+        if mode['dsm']:
             dsm = pd.concat(ds)
     
     data = {
@@ -172,20 +174,13 @@ def read_input(input_files):
         'buy_sell_price': buy_sell_price,
         'eff_factor': eff_factor
         }
-    if tra_mod:
+    if mode['tra']:
         data['transmission'] = transmission
-    if sto_mod:
+    if mode['sto']:
         data['storage'] = storage
-    if dsm_mod:
+    if mode['dsm']:
         data['dsm'] = dsm        
 
-    # save mode in dictionary
-    mode = {
-        'tra': tra_mod,
-        'sto': sto_mod,
-        'dsm': dsm_mod,
-        'int': int_mod
-        }
     # sort nested indexes to make direct assignments work
     for key in data:
         if isinstance(data[key].index, pd.core.index.MultiIndex):
