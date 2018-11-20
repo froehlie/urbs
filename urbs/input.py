@@ -278,8 +278,9 @@ def pyomo_model_prep(data, mode, timesteps):
     m.r_out_min_fraction = m.r_out_min_fraction[m.r_out_min_fraction > 0]
 
     # storages with fixed initial state
-    m.stor_init_bound = m.storage['init']
-    m.stor_init_bound = m.stor_init_bound[m.stor_init_bound >= 0]
+    if m.mode['sto']:
+        m.stor_init_bound = m.storage['init']
+        m.stor_init_bound = m.stor_init_bound[m.stor_init_bound >= 0]
 
     # storages with fixed energy-to-power ratio
     # try:
@@ -435,25 +436,29 @@ def pyomo_model_prep(data, mode, timesteps):
                                        invcost_factor(x['depreciation'],
                                                       x['wacc']),
                                        axis=1))
-        try:
-            m.transmission['invcost-factor'] = (
-                            m.transmission.apply(lambda x:
-                            invcost_factor(x['depreciation'],x['wacc']), 
-                            axis=1))
-        except ValueError:
-            pass
-        try:
-            m.storage['invcost-factor'] = (m.storage.apply(lambda x:
-                                        invcost_factor(x['depreciation'],
-                                                        x['wacc']),
-                                        axis=1))
-        except ValueError:
-            pass
-        
+
+        # cost factor will be set to 1 for non intertmporal problems
         m.commodity['cost_factor'] = 1
         m.process['cost_factor'] = 1
-        m.transmission['cost_factor'] = 1
-        m.storage['cost_factor'] = 1
+        
+        # optional modes
+        if m.mode['tra']:
+                m.transmission['invcost-factor'] = (
+                                m.transmission.apply(lambda x:
+                                invcost_factor(x['depreciation'],x['wacc']), 
+                                axis=1)) 
+            m.transmission['cost_factor'] = 1
+
+        if m.mode['sto']:
+                m.storage['invcost-factor'] = (m.storage.apply(lambda x:
+                                            invcost_factor(x['depreciation'],
+                                                            x['wacc']),
+                                            axis=1))
+            m.storage['cost_factor'] = 1
+        
+
+        
+
         
 
     # Converting Data frames to dictionaries

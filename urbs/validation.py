@@ -70,11 +70,12 @@ def validate_input(data, mode):
         # raise ValueError('All values in Sheet SupIm must be <= 1.')
 
     # Identify non sensible values for inputs
-    if (data['storage']['init'] > 1).any():
-        raise ValueError("In worksheet 'storage' all values in column 'init'"
-                         " must be either in [0,1] (for a fixed initial"
-                         " storage level) or 'nan' for a variable initial"
-                         " storage level")
+    if mode['sto']:
+        if (data['storage']['init'] > 1).any():
+            raise ValueError("In worksheet 'storage' all values in column 'init'"
+                            " must be either in [0,1] (for a fixed initial"
+                            " storage level) or 'nan' for a variable initial"
+                            " storage level")
 
     # Identify outdated column label 'maxperstep' on the commodity tab and
     # suggest a rename to 'maxperhour'

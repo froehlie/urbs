@@ -310,17 +310,19 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
                     m.com_env],
     doc='Outputs of processes with time dependent efficiency')
 
-    # storage tuples for storages with fixed initial state
-    m.sto_init_bound_tuples = pyomo.Set(
-        within=m.stf*m.sit*m.sto*m.com,
-        initialize=m.stor_init_bound.index,
-    doc='storages with fixed initial state')
+    
+    if m.mode['sto']:
+        # storage tuples for storages with fixed initial state
+        m.sto_init_bound_tuples = pyomo.Set(
+            within=m.stf*m.sit*m.sto*m.com,
+            initialize=m.stor_init_bound.index,
+        doc='storages with fixed initial state')
 
-    # storage tuples for storages with given energy to power ratio
-    # m.sto_ep_ratio_tuples = pyomo.Set(
-        # within=m.sit*m.sto*m.com,
-        # initialize=m.sto_ep_ratio.index,
-        # doc='storages with given energy to power ratio')
+        # storage tuples for storages with given energy to power ratio
+        # m.sto_ep_ratio_tuples = pyomo.Set(
+            # within=m.sit*m.sto*m.com,
+            # initialize=m.sto_ep_ratio.index,
+            # doc='storages with given energy to power ratio')
         
     # Variables
 
