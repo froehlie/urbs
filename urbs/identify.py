@@ -6,11 +6,13 @@ def identify_mode(filename):
     
     Minimum mode: only one site, no transmission, no storage, no DSM, no expansion
     optional features:
+    Intertemporal
     Transmission
     Storage
     DSM
-    Intertemporal
-    Expansion
+    Buy Sell
+    Variable efficiency
+    
     
     Args:
         data: a dict of 6 DataFrames with the keys 'commodity', 'process',
@@ -21,10 +23,12 @@ def identify_mode(filename):
 
     # create modes
     mode = {
+        'int': False,
         'tra': False,
         'sto': False,
         'dsm': False,
-        'int': False
+        'bsp': False,
+        'eff': False
         }
 
     with pd.ExcelFile(filename) as xls:
@@ -46,5 +50,12 @@ def identify_mode(filename):
         if 'DSM' in xls.sheet_names \
         and not xls.parse('DSM').set_index(['Site', 'Commodity']).empty:
             mode['dsm'] = True
+        # Buy sell price mode
+        if 'Buy-Sell-Price' in xls.sheet_names \
+        and not xls.parse('Buy-Sell-Price').set_index(['t']).empty:
+            mode['bsp'] = True 
+        if 'TimeVarEff' in xls.sheet_names \
+        and not xls.parse('TmeVarEff').set_index(['t']).empty:
+            mode['eff'] = True  
 
     return mode

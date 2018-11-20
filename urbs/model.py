@@ -59,26 +59,11 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
     #       domain: set domain for tuple sets, a cartesian set product
     #       values: set values, a list or array of element tuples
 
-    # generate ordered time step sets
-    m.t = pyomo.Set(
-        initialize=m.timesteps,
-        ordered=True,
-        doc='Set of timesteps')
-
     # modelled (i.e. excluding init time step for storage) time steps
     m.tm = pyomo.Set(
-        within=m.t,
         initialize=m.timesteps[1:],
         ordered=True,
         doc='Set of modelled timesteps')
-
-    # modelled Demand Side Management time steps (downshift):
-    # downshift effective in tt to compensate for upshift in t
-    m.tt = pyomo.Set(
-        within=m.t,
-        initialize=m.timesteps[1:],
-        ordered=True,
-        doc='Set of additional DSM time steps')
 
     # support timeframes (e.g. 2020, 2030...)
     m.stf = pyomo.Set(
@@ -106,19 +91,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         initialize=m.process.index.get_level_values('Process').unique(),
         doc='Set of conversion processes')
 
-    # tranmission (e.g. hvac, hvdc, pipeline...)
-    if m.mode['tra']:
-        m.tra = pyomo.Set(
-            initialize=m.transmission.index.get_level_values('Transmission')
-                                        .unique(),
-            doc='Set of transmission technologies')
-
-    # storage (e.g. hydrogen, pump storage)
-    if m.mode['sto']:
-        m.sto = pyomo.Set(
-            initialize=m.storage.index.get_level_values('Storage').unique(),
-            doc='Set of storage technologies')
-
     # cost_type
     m.cost_type = pyomo.Set(
         initialize=['Invest', 'Fixed', 'Variable', 'Fuel', 'Revenue',
@@ -138,63 +110,11 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         within=m.stf*m.sit*m.pro,
         initialize=m.process.index,
         doc='Combinations of possible processes, e.g. (2020,North,Coal plant)')
-    if m.mode['tra']:
-        m.tra_tuples = pyomo.Set(
-            within=m.stf*m.sit*m.sit*m.tra*m.com,
-            initialize=m.transmission.index,
-            doc='Combinations of possible transmissions, e.g. '
-                '(2020,South,Mid,hvac,Elec)')
-        if m.mode['int']:
-            m.operational_tra_tuples = pyomo.Set(
-                within=m.sit*m.sit*m.tra*m.com*m.stf*m.stf,
-                initialize=[(sit, sit_, tra, com, stf, stf_later)
-                            for (sit, sit_, tra, com, stf, stf_later)
-                            in op_tra_tuples(m.tra_tuples, m)],
-                doc='Transmissions that are still operational through stf_later'
-                    '(and the relevant years following), if built in stf'
-                    'in stf.')
-            m.inst_tra_tuples = pyomo.Set(
-                within=m.sit*m.sit*m.tra*m.com*m.stf,
-                initialize=[(sit, sit_, tra, com, stf)
-                            for (sit, sit_, tra, com, stf)
-                            in inst_tra_tuples(m)],
-                doc='Installed transmissions that are still operational' 
-                    'through stf')
-    if m.mode['sto']:
-        m.sto_tuples = pyomo.Set(
-            within=m.stf*m.sit*m.sto*m.com,
-            initialize=m.storage.index,
-            doc='Combinations of possible storage by site,'
-                'e.g. (2020,Mid,Bat,Elec)')
-        if m.mode['int']:
-            m.operational_sto_tuples = pyomo.Set(
-                within=m.sit*m.sto*m.com*m.stf*m.stf,
-                initialize=[(sit, sto, com, stf, stf_later)
-                            for (sit, sto, com, stf, stf_later)
-                            in op_sto_tuples(m.sto_tuples, m)],
-                doc='Processes that are still operational through stf_later'
-                    '(and the relevant years following), if built in stf'
-                    'in stf.')
-            m.inst_sto_tuples = pyomo.Set(
-                within=m.sit*m.sto*m.com*m.stf,
-                initialize=[(sit, sto, com, stf)
-                            for (sit, sto, com, stf)
-                            in inst_sto_tuples(m)],
-                doc='Installed storages that are still operational through stf')
-    if m.mode['dsm']:
-        m.dsm_site_tuples = pyomo.Set(
-            within=m.stf*m.sit*m.com,
-            initialize=m.dsm.index,
-            doc='Combinations of possible dsm by site, e.g. (2020, Mid, Elec)')
-        m.dsm_down_tuples = pyomo.Set(
-            within=m.tm*m.tm*m.stf*m.sit*m.com,
-            initialize=[(t, tt, stf, site, commodity)
-                        for (t, tt, stf, site, commodity)
-                        in dsm_down_time_tuples(m.timesteps[1:],
-                                                m.dsm_site_tuples,
-                                                m)],
-            doc='Combinations of possible dsm_down combinations, e.g. '
-                '(5001,5003,2020,Mid,Elec)')
+    
+    m.com_stock = pyomo.Set(
+        within=m.com,
+        initialize=commodity_subset(m.com_tuples, 'Stock'),
+        doc='Commodities that can be purchased at some site(s)')
 
     if m.mode['int']:
         # tuples for operational status of technologies
@@ -221,18 +141,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         within=m.com,
         initialize=commodity_subset(m.com_tuples, 'SupIm'),
         doc='Commodities that have intermittent (timeseries) input')
-    m.com_stock = pyomo.Set(
-        within=m.com,
-        initialize=commodity_subset(m.com_tuples, 'Stock'),
-        doc='Commodities that can be purchased at some site(s)')
-    m.com_sell = pyomo.Set(
-        within=m.com,
-        initialize=commodity_subset(m.com_tuples, 'Sell'),
-        doc='Commodities that can be sold')
-    m.com_buy = pyomo.Set(
-        within=m.com,
-        initialize=commodity_subset(m.com_tuples, 'Buy'),
-        doc='Commodities that can be purchased')
     m.com_demand = pyomo.Set(
         within=m.com,
         initialize=commodity_subset(m.com_tuples, 'Demand'),
@@ -298,31 +206,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
                     for (s, pro, commodity) in m.r_out_min_fraction.index
                     if process == pro and s == stf],
         doc='Commodities with partial input ratio, e.g. (Mid,Coal PP,CO2)')
-
-    # process tuples for time variable efficiency
-    m.pro_timevar_output_tuples = pyomo.Set(
-        within=m.stf*m.sit*m.pro*m.com,
-        initialize=[(stf, site, process, commodity)
-                    for stf in m.eff_factor.index.levels[0]
-                    for (site, process) in m.eff_factor.columns
-                    for (st, pro, commodity) in m.r_out.index
-                    if process == pro and st == stf and commodity not in
-                    m.com_env],
-    doc='Outputs of processes with time dependent efficiency')
-
-    
-    if m.mode['sto']:
-        # storage tuples for storages with fixed initial state
-        m.sto_init_bound_tuples = pyomo.Set(
-            within=m.stf*m.sit*m.sto*m.com,
-            initialize=m.stor_init_bound.index,
-        doc='storages with fixed initial state')
-
-        # storage tuples for storages with given energy to power ratio
-        # m.sto_ep_ratio_tuples = pyomo.Set(
-            # within=m.sit*m.sto*m.com,
-            # initialize=m.sto_ep_ratio.index,
-            # doc='storages with given energy to power ratio')
         
     # Variables
 
@@ -331,20 +214,12 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         m.cost_type,
         within=pyomo.Reals,
         doc='Costs by type (EUR/a)')
-
+    
     # commodity
     m.e_co_stock = pyomo.Var(
         m.tm, m.com_tuples,
         within=pyomo.NonNegativeReals,
         doc='Use of stock commodity source (MW) per timestep')
-    m.e_co_sell = pyomo.Var(
-        m.tm, m.com_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='Use of sell commodity source (MW) per timestep')
-    m.e_co_buy = pyomo.Var(
-        m.tm, m.com_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='Use of buy commodity source (MW) per timestep')
 
     # process
     m.cap_pro = pyomo.Var(
@@ -368,67 +243,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         within=pyomo.NonNegativeReals,
         doc='Power flow out of process (MW) per timestep')
 
-    # transmission
-    if m.mode['tra']:
-        m.cap_tra = pyomo.Var(
-            m.tra_tuples,
-            within=pyomo.NonNegativeReals,
-            doc='Total transmission capacity (MW)')
-        m.cap_tra_new = pyomo.Var(
-            m.tra_tuples,
-            within=pyomo.NonNegativeReals,
-            doc='New transmission capacity (MW)')
-        m.e_tra_in = pyomo.Var(
-            m.tm, m.tra_tuples,
-            within=pyomo.NonNegativeReals,
-            doc='Power flow into transmission line (MW) per timestep')
-        m.e_tra_out = pyomo.Var(
-            m.tm, m.tra_tuples,
-            within=pyomo.NonNegativeReals,
-            doc='Power flow out of transmission line (MW) per timestep')
-
-    # storage
-    if m.mode['sto']:
-        m.cap_sto_c = pyomo.Var(
-            m.sto_tuples,
-            within=pyomo.NonNegativeReals,
-            doc='Total storage size (MWh)')
-        m.cap_sto_c_new = pyomo.Var(
-            m.sto_tuples,
-            within=pyomo.NonNegativeReals,
-            doc='New storage size (MWh)')
-        m.cap_sto_p = pyomo.Var(
-            m.sto_tuples,
-            within=pyomo.NonNegativeReals,
-            doc='Total storage power (MW)')
-        m.cap_sto_p_new = pyomo.Var(
-            m.sto_tuples,
-            within=pyomo.NonNegativeReals,
-            doc='New  storage power (MW)')
-        m.e_sto_in = pyomo.Var(
-            m.tm, m.sto_tuples,
-            within=pyomo.NonNegativeReals,
-            doc='Power flow into storage (MW) per timestep')
-        m.e_sto_out = pyomo.Var(
-            m.tm, m.sto_tuples,
-            within=pyomo.NonNegativeReals,
-            doc='Power flow out of storage (MW) per timestep')
-        m.e_sto_con = pyomo.Var(
-            m.t, m.sto_tuples,
-            within=pyomo.NonNegativeReals,
-            doc='Energy content of storage (MWh) in timestep')
-
-    # demand side management
-    if m.mode['dsm']:
-        m.dsm_up = pyomo.Var(
-            m.tm, m.dsm_site_tuples,
-            within=pyomo.NonNegativeReals,
-            doc='DSM upshift')
-        m.dsm_down = pyomo.Var(
-            m.dsm_down_tuples,
-            within=pyomo.NonNegativeReals,
-            doc='DSM downshift')
-
     # Equation declarations
     # equation bodies are defined in separate functions, referred to here by
     # their name in the "rule" keyword.
@@ -446,22 +260,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         m.com_tuples,
         rule=res_stock_total_rule,
         doc='total stock commodity input <= commodity.max')
-    m.res_sell_step = pyomo.Constraint(
-        m.tm, m.com_tuples,
-        rule=res_sell_step_rule,
-        doc='sell commodity output per step <= commodity.maxperstep')
-    m.res_sell_total = pyomo.Constraint(
-        m.com_tuples,
-        rule=res_sell_total_rule,
-        doc='total sell commodity output <= commodity.max')
-    m.res_buy_step = pyomo.Constraint(
-        m.tm, m.com_tuples,
-        rule=res_buy_step_rule,
-        doc='buy commodity output per step <= commodity.maxperstep')
-    m.res_buy_total = pyomo.Constraint(
-        m.com_tuples,
-        rule=res_buy_total_rule,
-        doc='total buy commodity output <= commodity.max')
     m.res_env_step = pyomo.Constraint(
         m.tm, m.com_tuples,
         rule=res_env_step_rule,
@@ -517,11 +315,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         rule=res_area_rule,
         doc='used process area <= total process area')
 
-    m.res_sell_buy_symmetry = pyomo.Constraint(
-        m.pro_input_tuples,
-        rule=res_sell_buy_symmetry_rule,
-        doc='power connection capacity must be symmetric in both directions')
-
     m.res_throughput_by_capacity_min = pyomo.Constraint(
         m.tm, m.pro_partial_tuples,
         rule=res_throughput_by_capacity_min_rule,
@@ -548,95 +341,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         m.tm, m.pro_partial_output_tuples & m.pro_timevar_output_tuples,
         rule=def_pro_partial_timevar_output_rule,
         doc='e_pro_out = tau_pro * r_out * eff_factor')
-
-    # transmission
-    if m.mode['tra']:
-        if m.mode['int']:
-            m.def_int_transmission_capacity = pyomo.Constraint(
-                m.tra_tuples,
-                rule=def_int_transmission_capacity_rule,
-                doc='total transmission capacity = inst-cap + new capacity')
-        else:
-            m.def_transmission_capacity = pyomo.Constraint(
-                m.tra_tuples,
-                rule=def_transmission_capacity_rule,
-                doc='total transmission capacity = inst-cap + new capacity')
-        m.def_transmission_output = pyomo.Constraint(
-            m.tm, m.tra_tuples,
-            rule=def_transmission_output_rule,
-            doc='transmission output = transmission input * efficiency')
-        m.res_transmission_input_by_capacity = pyomo.Constraint(
-            m.tm, m.tra_tuples,
-            rule=res_transmission_input_by_capacity_rule,
-            doc='transmission input <= total transmission capacity')
-        m.res_transmission_capacity = pyomo.Constraint(
-            m.tra_tuples,
-            rule=res_transmission_capacity_rule,
-            doc='transmission.cap-lo <= total transmission capacity <= '
-                'transmission.cap-up')
-        m.res_transmission_symmetry = pyomo.Constraint(
-            m.tra_tuples,
-            rule=res_transmission_symmetry_rule,
-            doc='total transmission capacity must be symmetric in both directions')
-
-    # storage
-    if m.mode['sto']:
-        m.def_storage_state = pyomo.Constraint(
-            m.tm, m.sto_tuples,
-            rule=def_storage_state_rule,
-            doc='storage[t] = (1 - sd) * storage[t-1] + in * eff_i - out / eff_o')
-        if m.mode['int']:
-            m.def_int_storage_power = pyomo.Constraint(
-                m.sto_tuples,
-                rule=def_int_storage_power_rule,
-                doc='storage power = inst-cap + new power')
-        else:
-            m.def_storage_power = pyomo.Constraint(
-                m.sto_tuples,
-                rule=def_storage_power_rule,
-                doc='storage power = inst-cap + new power')            
-        if m.mode['int']:
-            m.def_int_storage_capacity = pyomo.Constraint(
-                m.sto_tuples,
-                rule=def_int_storage_capacity_rule,
-                doc='storage capacity = inst-cap + new capacity')
-        else:
-            m.def_storage_capacity = pyomo.Constraint(
-                m.sto_tuples,
-                rule=def_storage_capacity_rule,
-                doc='storage capacity = inst-cap + new capacity')
-        m.res_storage_input_by_power = pyomo.Constraint(
-            m.tm, m.sto_tuples,
-            rule=res_storage_input_by_power_rule,
-            doc='storage input <= storage power')
-        m.res_storage_output_by_power = pyomo.Constraint(
-            m.tm, m.sto_tuples,
-            rule=res_storage_output_by_power_rule,
-            doc='storage output <= storage power')
-        m.res_storage_state_by_capacity = pyomo.Constraint(
-            m.t, m.sto_tuples,
-            rule=res_storage_state_by_capacity_rule,
-            doc='storage content <= storage capacity')
-        m.res_storage_power = pyomo.Constraint(
-            m.sto_tuples,
-            rule=res_storage_power_rule,
-            doc='storage.cap-lo-p <= storage power <= storage.cap-up-p')
-        m.res_storage_capacity = pyomo.Constraint(
-            m.sto_tuples,
-            rule=res_storage_capacity_rule,
-            doc='storage.cap-lo-c <= storage capacity <= storage.cap-up-c')
-        m.res_initial_and_final_storage_state = pyomo.Constraint(
-            m.t, m.sto_init_bound_tuples,
-            rule=res_initial_and_final_storage_state_rule,
-            doc='storage content initial == and final >= storage.init * capacity')
-        m.res_initial_and_final_storage_state_var = pyomo.Constraint(
-            m.t, m.sto_tuples - m.sto_init_bound_tuples,
-            rule=res_initial_and_final_storage_state_var_rule,
-            doc='storage content initial <= final, both variable')
-        # m.def_storage_energy_power_ratio = pyomo.Constraint(
-            # m.sto_ep_ratio_tuples,
-            # rule=def_storage_energy_power_ratio_rule,
-            # doc='storage capacity = storage power * storage E2P ratio')
 
     # costs
     m.def_costs = pyomo.Constraint(
@@ -673,33 +377,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         raise NotImplementedError("Non-implemented objective quantity. Set "
                                   "either 'cost' or 'CO2' as the objective in "
                                   "runme.py!")
-
-    # demand side management
-    if m.mode['dsm']:
-        m.def_dsm_variables = pyomo.Constraint(
-            m.tm, m.dsm_site_tuples,
-            rule=def_dsm_variables_rule,
-            doc='DSMup * efficiency factor n == DSMdo (summed)')
-
-        m.res_dsm_upward = pyomo.Constraint(
-            m.tm, m.dsm_site_tuples,
-            rule=res_dsm_upward_rule,
-            doc='DSMup <= Cup (threshold capacity of DSMup)')
-
-        m.res_dsm_downward = pyomo.Constraint(
-            m.tm, m.dsm_site_tuples,
-            rule=res_dsm_downward_rule,
-            doc='DSMdo (summed) <= Cdo (threshold capacity of DSMdo)')
-
-        m.res_dsm_maximum = pyomo.Constraint(
-            m.tm, m.dsm_site_tuples,
-            rule=res_dsm_maximum_rule,
-            doc='DSMup + DSMdo (summed) <= max(Cup,Cdo)')
-
-        m.res_dsm_recovery = pyomo.Constraint(
-            m.tm, m.dsm_site_tuples,
-            rule=res_dsm_recovery_rule,
-            doc='DSMup(t, t + recovery time R) <= Cup * delay time L')
 
     m.res_global_co2_limit = pyomo.Constraint(
         m.stf,

@@ -457,10 +457,6 @@ def pyomo_model_prep(data, mode, timesteps):
             m.storage['cost_factor'] = 1
         
 
-        
-
-        
-
     # Converting Data frames to dictionaries
     m.commodity_dict = m.commodity.to_dict()
     m.process_dict = m.process.to_dict()
