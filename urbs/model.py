@@ -1,8 +1,9 @@
 import math
 import pyomo.core as pyomo
 from datetime import datetime
-from .modelhelper import *
+from .features.modelhelper import *
 from .input import *
+from .features import *
 
 
 def create_model(data, mode, dt=1, timesteps=None, objective = 'cost', 
@@ -59,8 +60,15 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
     #       domain: set domain for tuple sets, a cartesian set product
     #       values: set values, a list or array of element tuples
 
+    # generate ordered time step sets
+    m.t = pyomo.Set(
+        initialize=m.timesteps,
+        ordered=True,
+        doc='Set of timesteps')
+
     # modelled (i.e. excluding init time step for storage) time steps
     m.tm = pyomo.Set(
+        within = m.t,
         initialize=m.timesteps[1:],
         ordered=True,
         doc='Set of modelled timesteps')
@@ -242,6 +250,18 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         m.tm, m.pro_tuples, m.com,
         within=pyomo.NonNegativeReals,
         doc='Power flow out of process (MW) per timestep')
+   
+    # Add additional features
+    if m.mode['tra']:
+        m = add_transmission(m)
+    if m.mode['sto']:
+        m = add_storage(m)
+    if m.mode['dsm']:
+        m = add_dsm(m)
+    if m.mode['bsp']:
+        m = add_buy_sell_price(m)
+    if m.mode['eff']:
+        m = add_time_variable_efficiency(m)
 
     # Equation declarations
     # equation bodies are defined in separate functions, referred to here by
@@ -332,15 +352,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         doc='e_pro_out = '
             ' cap_pro * min_fraction * (r - R) / (1 - min_fraction)'
             ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')
-    m.def_process_timevar_output = pyomo.Constraint(
-        m.tm, (m.pro_timevar_output_tuples -
-               (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-        rule=def_pro_timevar_output_rule,
-        doc='e_pro_out = tau_pro * r_out * eff_factor')
-    m.def_process_partial_timevar_output = pyomo.Constraint(
-        m.tm, m.pro_partial_output_tuples & m.pro_timevar_output_tuples,
-        rule=def_pro_partial_timevar_output_rule,
-        doc='e_pro_out = tau_pro * r_out * eff_factor')
 
     # costs
     m.def_costs = pyomo.Constraint(
@@ -417,16 +428,10 @@ def res_vertex_rule(m, tm, stf, sit, com, com_type):
     # can supply a possibly negative power_surplus
     if com in m.com_stock:
         power_surplus += m.e_co_stock[tm, stf, sit, com, com_type]
-
-    # if com is a sell commodity, the commodity source term e_co_sell
-    # can supply a possibly positive power_surplus
-    if com in m.com_sell:
-        power_surplus -= m.e_co_sell[tm, stf, sit, com, com_type]
-
-    # if com is a buy commodity, the commodity source term e_co_buy
-    # can supply a possibly negative power_surplus
-    if com in m.com_buy:
-        power_surplus += m.e_co_buy[tm, stf, sit, com, com_type]
+    
+    # if Buy and sell prices are enabled
+    if m.mode['bsp']:
+        power_surplus += bsp_surplus(m, tm, stf, sit, com, com_type)
 
     # if com is a demand commodity, the power_surplus is reduced by the
     # demand value; no scaling by m.dt or m.weight is needed here, as this
@@ -436,77 +441,11 @@ def res_vertex_rule(m, tm, stf, sit, com, com_type):
             power_surplus -= m.demand_dict[(sit, com)][(stf, tm)]
         except KeyError:
             pass
-    # if com is a demand commodity, the power_surplus is reduced by the
-    # demand value; no scaling by m.dt or m.weight is needed here, as this
-    # constraint is about power (MW), not energy (MWh)
+
     if m.mode['dsm']:
-        if (stf, sit, com) in m.dsm_site_tuples:
-            power_surplus -= m.dsm_up[tm, stf, sit, com]
-            power_surplus += sum(m.dsm_down[t, tm, stf, sit, com]
-                                for t in dsm_time_tuples(
-                                    tm, m.timesteps[1:],
-                                    max(int(1 / m.dt *
-                                        m.dsm_dict['delay'][(stf, sit, com)]),
-                                        1)))
+        power_surplus += dsm_surplus(m, tm, stf, sit, com)
+
     return power_surplus == 0
-
-# demand side management (DSM) constraints
-
-# DSMup == DSMdo * efficiency factor n
-def def_dsm_variables_rule(m, tm, stf, sit, com):
-    dsm_down_sum = 0
-    for tt in dsm_time_tuples(tm,
-                              m.timesteps[1:],
-                              max(int(1 / m.dt *
-                                  m.dsm_dict['delay'][(stf, sit, com)]), 1)):
-        dsm_down_sum += m.dsm_down[tm, tt, stf, sit, com]
-    return dsm_down_sum == (m.dsm_up[tm, stf, sit, com] *
-                            m.dsm_dict['eff'][(stf, sit, com)])
-
-
-# DSMup <= Cup (threshold capacity of DSMup)
-def res_dsm_upward_rule(m, tm, stf, sit, com):
-    return m.dsm_up[tm, stf, sit, com] <= (m.dt *
-                                           m.dsm_dict['cap-max-up']
-                                           [(stf, sit, com)])
-
-
-# DSMdo <= Cdo (threshold capacity of DSMdo)
-def res_dsm_downward_rule(m, tm, stf, sit, com):
-    dsm_down_sum = 0
-    for t in dsm_time_tuples(tm,
-                             m.timesteps[1:],
-                             max(int(1 / m.dt *
-                                 m.dsm_dict['delay'][(stf, sit, com)]), 1)):
-        dsm_down_sum += m.dsm_down[t, tm, stf, sit, com]
-    return dsm_down_sum <= (m.dt * m.dsm_dict['cap-max-do'][(stf, sit, com)])
-
-
-# DSMup + DSMdo <= max(Cup,Cdo)
-def res_dsm_maximum_rule(m, tm, stf, sit, com):
-    dsm_down_sum = 0
-    for t in dsm_time_tuples(tm,
-                             m.timesteps[1:],
-                             max(int(1 / m.dt *
-                                 m.dsm_dict['delay'][(stf, sit, com)]), 1)):
-        dsm_down_sum += m.dsm_down[t, tm, stf, sit, com]
-
-    max_dsm_limit = m.dt * max(m.dsm_dict['cap-max-up'][(stf, sit, com)],
-                               m.dsm_dict['cap-max-do'][(stf, sit, com)])
-    return m.dsm_up[tm, stf, sit, com] + dsm_down_sum <= max_dsm_limit
-
-
-# DSMup(t, t + recovery time R) <= Cup * delay time L
-def res_dsm_recovery_rule(m, tm, stf, sit, com):
-    dsm_up_sum = 0
-    for t in dsm_recovery(tm,
-                          m.timesteps[1:],
-                          max(int(1 / m.dt *
-                              m.dsm_dict['recov'][(stf, sit, com)]), 1)):
-        dsm_up_sum += m.dsm_up[t, stf, sit, com]
-    return dsm_up_sum <= (m.dsm_dict['cap-max-up'][(stf, sit, com)] *
-                          m.dsm_dict['delay'][(stf, sit, com)])
-
 
 # stock commodity purchase == commodity consumption, according to
 # commodity_balance of current (time step, site, commodity);
@@ -531,58 +470,6 @@ def res_stock_total_rule(m, stf, sit, com, com_type):
         for tm in m.tm:
             total_consumption += (
                 m.e_co_stock[tm, stf, sit, com, com_type])
-        total_consumption *= m.weight
-        return (total_consumption <=
-                m.commodity_dict['max'][(stf, sit, com, com_type)])
-
-
-# limit sell commodity use per time step
-def res_sell_step_rule(m, tm, stf, sit, com, com_type):
-    if com not in m.com_sell:
-        return pyomo.Constraint.Skip
-    else:
-        return (m.e_co_sell[tm, stf, sit, com, com_type] <=
-                m.dt * m.commodity_dict['maxperhour']
-                [(stf, sit, com, com_type)])
-
-
-# limit sell commodity use in total (scaled to annual consumption, thanks
-# to m.weight)
-def res_sell_total_rule(m, stf, sit, com, com_type):
-    if com not in m.com_sell:
-        return pyomo.Constraint.Skip
-    else:
-        # calculate total sale of commodity com
-        total_consumption = 0
-        for tm in m.tm:
-            total_consumption += (
-                m.e_co_sell[tm, stf, sit, com, com_type])
-        total_consumption *= m.weight
-        return (total_consumption <=
-                m.commodity_dict['max'][(stf, sit, com, com_type)])
-
-
-# limit buy commodity use per time step
-def res_buy_step_rule(m, tm, stf, sit, com, com_type):
-    if com not in m.com_buy:
-        return pyomo.Constraint.Skip
-    else:
-        return (m.e_co_buy[tm, stf, sit, com, com_type] <=
-                m.dt * m.commodity_dict['maxperhour']
-                [(stf, sit, com, com_type)])
-
-
-# limit buy commodity use in total (scaled to annual consumption, thanks
-# to m.weight)
-def res_buy_total_rule(m, stf, sit, com, com_type):
-    if com not in m.com_buy:
-        return pyomo.Constraint.Skip
-    else:
-        # calculate total sale of commodity com
-        total_consumption = 0
-        for tm in m.tm:
-            total_consumption += (
-                m.e_co_buy[tm, stf, sit, com, com_type])
         total_consumption *= m.weight
         return (total_consumption <=
                 m.commodity_dict['max'][(stf, sit, com, com_type)])
@@ -717,27 +604,6 @@ def def_partial_process_output_rule(m, tm, stf, sit, pro, coo):
             m.tau_pro[tm, stf, sit, pro] * throughput_factor)
 
 
-def def_pro_timevar_output_rule(m, tm, stf, sit, pro, com):
-    return(m.e_pro_out[tm, stf, sit, pro, com] ==
-           m.tau_pro[tm, stf, sit, pro] * m.r_out_dict[(stf, pro, com)] *
-           m.eff_factor_dict[(sit, pro)][stf, tm])
-
-
-def def_pro_partial_timevar_output_rule(m, tm, stf, sit, pro, coo):
-    # input ratio at maximum operation point
-    R = m.r_out.loc[stf, pro, coo]
-    # input ratio at lowest operation point
-    r = m.r_out_min_fraction[stf, pro, coo]
-    min_fraction = m.process_dict['min-fraction'][(stf, sit, pro)]
-
-    online_factor = min_fraction * (r - R) / (1 - min_fraction)
-    throughput_factor = (R - min_fraction * r) / (1 - min_fraction)
-    return (m.e_pro_out[tm, stf, sit, pro, coo] ==
-            (m.dt * m.cap_pro[stf, sit, pro] * online_factor +
-             m.tau_pro[tm, stf, sit, pro] * throughput_factor) *
-            m.eff_factor_dict[(sit, pro)][(stf, tm)])
-
-
 # lower bound <= process capacity <= upper bound
 def res_process_capacity_rule(m, stf, sit, pro):
     return (m.process_dict['cap-lo'][stf, sit, pro],
@@ -760,191 +626,6 @@ def res_area_rule(m, stf, sit):
         # Skip constraint, if area is not numeric
         return pyomo.Constraint.Skip
 
-
-# power connection capacity: Sell == Buy
-def res_sell_buy_symmetry_rule(m, stf, sit_in, pro_in, coin):
-    # constraint only for sell and buy processes
-    # and the processes must be in the same site
-    if coin in m.com_buy:
-        sell_pro = search_sell_buy_tuple(m, stf, sit_in, pro_in, coin)
-        if sell_pro is None:
-            return pyomo.Constraint.Skip
-        else:
-            return (m.cap_pro[stf, sit_in, pro_in] ==
-                    m.cap_pro[stf, sit_in, sell_pro])
-    else:
-        return pyomo.Constraint.Skip
-
-
-# transmission
-
-# transmission capacity == new capacity + existing capacity
-def def_transmission_capacity_rule(m, stf, sin, sout, tra, com):
-    return (m.cap_tra[stf, sin, sout, tra, com] ==
-            m.cap_tra_new[stf, sin, sout, tra, com] +
-            m.transmission_dict['inst-cap'][(stf, sin, sout, tra, com)])
-
-# transmission capacity rule for intertemporal planning
-def def_int_transmission_capacity_rule(m, stf, sin, sout, tra, com):
-    if (sin, sout, tra, com, stf) in m.inst_tra_tuples:
-        return (m.cap_tra[stf, sin, sout, tra, com] ==
-                sum(m.cap_tra_new[stf_built, sin, sout, tra, com]
-                for stf_built in m.stf
-                if (sin, sout, tra, com, stf_built, stf) in
-                m.operational_tra_tuples) +
-                m.transmission_dict['inst-cap']
-                [(min(m.stf), sin, sout, tra, com)])
-    else:
-        return (m.cap_tra[stf, sin, sout, tra, com] ==
-                sum(m.cap_tra_new[stf_built, sin, sout, tra, com]
-                for stf_built in m.stf
-                if (sin, sout, tra, com, stf_built, stf) in
-                m.operational_tra_tuples))
-
-
-# transmission output == transmission input * efficiency
-def def_transmission_output_rule(m, tm, stf, sin, sout, tra, com):
-    return (m.e_tra_out[tm, stf, sin, sout, tra, com] ==
-            m.e_tra_in[tm, stf, sin, sout, tra, com] *
-            m.transmission_dict['eff'][(stf, sin, sout, tra, com)])
-
-
-# transmission input <= transmission capacity
-def res_transmission_input_by_capacity_rule(m, tm, stf, sin, sout, tra, com):
-    return (m.e_tra_in[tm, stf, sin, sout, tra, com] <=
-            m.dt * m.cap_tra[stf, sin, sout, tra, com])
-
-
-# lower bound <= transmission capacity <= upper bound
-def res_transmission_capacity_rule(m, stf, sin, sout, tra, com):
-    return (m.transmission_dict['cap-lo'][(stf, sin, sout, tra, com)],
-            m.cap_tra[stf, sin, sout, tra, com],
-            m.transmission_dict['cap-up'][(stf, sin, sout, tra, com)])
-
-
-# transmission capacity from A to B == transmission capacity from B to A
-def res_transmission_symmetry_rule(m, stf, sin, sout, tra, com):
-    return m.cap_tra[stf, sin, sout, tra, com] == (m.cap_tra
-[stf, sout, sin, tra, com])
-
-
-# storage
-
-# storage content in timestep [t] == storage content[t-1] * (1-discharge)
-# + newly stored energy * input efficiency
-# - retrieved energy / output efficiency
-def def_storage_state_rule(m, t, stf, sit, sto, com):
-    return (m.e_sto_con[t, stf, sit, sto, com] ==
-            m.e_sto_con[t-1, stf, sit, sto, com] *
-            (1 - m.storage_dict['discharge']
-            [(stf, sit, sto, com)]) ** m.dt.value +
-            m.e_sto_in[t, stf, sit, sto, com] *
-            m.storage_dict['eff-in'][(stf, sit, sto, com)] -
-            m.e_sto_out[t, stf, sit, sto, com] /
-            m.storage_dict['eff-out'][(stf, sit, sto, com)])
-
-
-# storage power == new storage power + existing storage power
-def def_storage_power_rule(m, stf, sit, sto, com):
-    return (m.cap_sto_p[stf, sit, sto, com] ==
-            m.cap_sto_p_new[stf, sit, sto, com] +
-m.storage_dict['inst-cap-p'][(stf, sit, sto, com)])
-
-# storage power rule for intertemporal planning
-def def_int_storage_power_rule(m, stf, sit, sto, com):
-    if (sit, sto, com, stf) in m.inst_sto_tuples:
-        return (m.cap_sto_p[stf, sit, sto, com] ==
-                sum(m.cap_sto_p_new[stf_built, sit, sto, com]
-                for stf_built in m.stf
-                if (sit, sto, com, stf_built, stf) in
-                    m.operational_sto_tuples) +
-                m.storage_dict['inst-cap-p'][(min(m.stf), sit, sto, com)])
-    else:
-        return (m.cap_sto_p[stf, sit, sto, com] ==
-                sum(m.cap_sto_p_new[stf_built, sit, sto, com]
-                for stf_built in m.stf
-                if (sit, sto, com, stf_built, stf) in m.operational_sto_tuples)
-                )
-
-
-# storage capacity == new storage capacity + existing storage capacity
-def def_storage_capacity_rule(m, stf, sit, sto, com):
-    return (m.cap_sto_c[stf, sit, sto, com] ==
-            m.cap_sto_c_new[stf, sit, sto, com] +
-            m.storage_dict['inst-cap-c'][(stf, sit, sto, com)])
-
-# storage capacity rule for intertemporal planning
-def def_int_storage_capacity_rule(m, stf, sit, sto, com):
-    if (sit, sto, com, stf) in m.inst_sto_tuples:
-        return (m.cap_sto_c[stf, sit, sto, com] ==
-                sum(m.cap_sto_c_new[stf_built, sit, sto, com]
-                for stf_built in m.stf
-                if (sit, sto, com, stf_built, stf) in
-                    m.operational_sto_tuples) +
-                m.storage_dict['inst-cap-c'][(min(m.stf), sit, sto, com)])
-    else:
-        return (m.cap_sto_c[stf, sit, sto, com] ==
-                sum(m.cap_sto_c_new[stf_built, sit, sto, com]
-                    for stf_built in m.stf
-                    if (sit, sto, com, stf_built, stf) in
-                    m.operational_sto_tuples))
-
-
-# storage input <= storage power
-def res_storage_input_by_power_rule(m, t, stf, sit, sto, com):
-    return (m.e_sto_in[t, stf, sit, sto, com] <= m.dt *
-            m.cap_sto_p[stf, sit, sto, com])
-
-
-# storage output <= storage power
-def res_storage_output_by_power_rule(m, t, stf, sit, sto, co):
-    return (m.e_sto_out[t, stf, sit, sto, co] <= m.dt *
-            m.cap_sto_p[stf, sit, sto, co])
-
-
-# storage content <= storage capacity
-def res_storage_state_by_capacity_rule(m, t, stf, sit, sto, com):
-    return (m.e_sto_con[t, stf, sit, sto, com] <=
-            m.cap_sto_c[stf, sit, sto, com])
-
-
-# lower bound <= storage power <= upper bound
-def res_storage_power_rule(m, stf, sit, sto, com):
-    return (m.storage_dict['cap-lo-p'][(stf, sit, sto, com)],
-            m.cap_sto_p[stf, sit, sto, com],
-            m.storage_dict['cap-up-p'][(stf, sit, sto, com)])
-
-
-# lower bound <= storage capacity <= upper bound
-def res_storage_capacity_rule(m, stf, sit, sto, com):
-    return (m.storage_dict['cap-lo-c'][(stf, sit, sto, com)],
-            m.cap_sto_c[stf, sit, sto, com],
-            m.storage_dict['cap-up-c'][(stf, sit, sto, com)])
-
-
-# initialization of storage content in first timestep t[1]
-# forced minimun  storage content in final timestep t[len(m.t)]
-# content[t=1] == storage capacity * fraction <= content[t=final]
-def res_initial_and_final_storage_state_rule(m, t, stf, sit, sto, com):
-    if t == m.t[1]:  # first timestep (Pyomo uses 1-based indexing)
-        return (m.e_sto_con[t, stf, sit, sto, com] ==
-                m.cap_sto_c[stf, sit, sto, com] *
-                m.storage_dict['init'][(stf, sit, sto, com)])
-    elif t == m.t[len(m.t)]:  # last timestep
-        return (m.e_sto_con[t, stf, sit, sto, com] >=
-                m.cap_sto_c[stf, sit, sto, com] *
-                m.storage_dict['init'][(stf, sit, sto, com)])
-    else:
-        return pyomo.Constraint.Skip
-
-
-def res_initial_and_final_storage_state_var_rule(m, t, stf, sit, sto, com):
-    return (m.e_sto_con[m.t[1], stf, sit, sto, com] <=
-            m.e_sto_con[m.t[len(m.t)], stf, sit, sto, com])
-
-# def def_storage_energy_power_ratio_rule(m, sit, sto, com):
-    # return (m.cap_sto_c[sit, sto, com] ==
-            # m.cap_sto_p[sit, sto, com] * m.storage_dict['ep-ratio'][(sit, sto, com)])
             
 # total CO2 output <= Global CO2 limit
 def res_global_co2_limit_rule(m, stf):

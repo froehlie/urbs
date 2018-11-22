@@ -55,7 +55,7 @@ def identify_mode(filename):
         and not xls.parse('Buy-Sell-Price').set_index(['t']).empty:
             mode['bsp'] = True 
         if 'TimeVarEff' in xls.sheet_names \
-        and not xls.parse('TmeVarEff').set_index(['t']).empty:
+        and not xls.parse('TimeVarEff').set_index(['t']).empty:
             mode['eff'] = True  
 
     return mode
