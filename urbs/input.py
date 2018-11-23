@@ -283,11 +283,11 @@ def pyomo_model_prep(data, mode, timesteps):
     # storages with fixed initial state
     if m.mode['sto']:
         stor_init_bound = storage['init']
-        m.stor_init_bound_dict = m.stor_init_bound[m.stor_init_bound >= 0].to_dict()
+        m.stor_init_bound_dict = stor_init_bound[m.stor_init_bound >= 0].to_dict()
 
         # storages with fixed energy-to-power ratio
         sto_ep_ratio = storage['ep-ratio']
-        m.sto_ep_ratio_dict = m.sto_ep_ratio[m.sto_ep_ratio >= 0].to_dict()
+        m.sto_ep_ratio_dict = sto_ep_ratio[m.sto_ep_ratio >= 0].to_dict()
 
     
     # derive invcost factor from WACC and depreciation duration
@@ -451,13 +451,13 @@ def pyomo_model_prep(data, mode, timesteps):
         
 
     # Converting Data frames to dictionaries
-    commodity_dict = commodity.to_dict()
-    process_dict = process.to_dict()
+    m.commodity_dict = commodity.to_dict()
+    m.process_dict = process.to_dict()
     # additional features
     if m.mode['tra']:
-        transmission_dict = transmission.to_dict()
+        m.transmission_dict = transmission.to_dict()
     if m.mode['sto']:
-        storage_dict = storage.to_dict()
+        m.storage_dict = storage.to_dict()
     return m
 
 

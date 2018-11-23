@@ -134,7 +134,7 @@ if __name__ == '__main__':
 
     # select scenarios to be run
     scenarios = [
-        scenario_base,
+        urbs.scenario_base,
         # scenario_stock_prices,
         # scenario_co2_limit,
         # scenario_co2_tax_mid,
