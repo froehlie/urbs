@@ -74,15 +74,17 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         doc='Set of modelled timesteps')
 
     # support timeframes (e.g. 2020, 2030...)
+    indexlist = set()
+    for key in m.commodity_dict["price"]:
+        indexlist.add(tuple(key)[0])
     m.stf = pyomo.Set(
-        initialize=(m.commodity.index.get_level_values('support_timeframe')
-                    .unique()),
-    doc='Set of modeled support timeframes (e.g. years)')
+        initialize= indexlist,
+        doc='Set of modeled support timeframes (e.g. years)')
 
     # site (e.g. north, middle, south...)
     indexlist = set()
     for key in m.commodity_dict["price"]:
-        indexlist.add(tuple(key)[0])
+        indexlist.add(tuple(key)[1])
     m.sit = pyomo.Set(
         initialize=indexlist,
         doc='Set of sites')
@@ -90,7 +92,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
     # commodity (e.g. solar, wind, coal...)
     indexlist = set()
     for key in m.commodity_dict["price"]:
-        indexlist.add(tuple(key)[1])
+        indexlist.add(tuple(key)[2])
     m.com = pyomo.Set(
         initialize=indexlist,
         doc='Set of commodities')
@@ -98,7 +100,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
     # commodity type (i.e. SupIm, Demand, Stock, Env)
     indexlist = set()
     for key in m.commodity_dict["price"]:
-        indexlist.add(tuple(key)[2])
+        indexlist.add(tuple(key)[3])
     m.com_type = pyomo.Set(
         initialize=indexlist,
         doc='Set of commodity types')
@@ -106,7 +108,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
     # process (e.g. Wind turbine, Gas plant, Photovoltaics...)
     indexlist = set()
     for key in m.process_dict["inv-cost"]:
-        indexlist.add(tuple(key)[1])
+        indexlist.add(tuple(key)[2])
     m.pro = pyomo.Set(
         initialize=indexlist,
         doc='Set of conversion processes')
@@ -120,16 +122,16 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
     # tuple sets
     m.sit_tuples = pyomo.Set(
         within=m.stf*m.sit,
-        initialize=m.site.index,
-        doc='Combinations of support imeframes and sites')
+        initialize=tuple(m.site_dict["area"].keys()),
+        doc='Combinations of support timeframes and sites')
     m.com_tuples = pyomo.Set(
         within=m.stf*m.sit*m.com*m.com_type,
         initialize=tuple(m.commodity_dict["price"].keys()),
-        doc='Combinations of defined commodities, e.g. (Mid,Elec,Demand)')
+        doc='Combinations of defined commodities, e.g. (2018,Mid,Elec,Demand)')
     m.pro_tuples = pyomo.Set(
         within=m.stf*m.sit*m.pro,
         initialize=tuple(m.process_dict["inv-cost"].keys()),
-        doc='Combinations of possible processes, e.g. (North,Coal plant)')
+        doc='Combinations of possible processes, e.g. (2018,North,Coal plant)')
     m.com_stock = pyomo.Set(
         within=m.com,
         initialize=commodity_subset(m.com_tuples, 'Stock'),
@@ -198,7 +200,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         within=m.stf*m.sit*m.pro,
         initialize=[(stf, sit, pro)
                     for (stf, sit, pro) in m.pro_tuples
-                    if m.process_dict['max-grad'][sit, pro] < 1.0 / dt],
+                    if m.process_dict['max-grad'][stf, sit, pro] < 1.0 / dt],
         doc='Processes with maximum gradient smaller than timestep length')
 
     # process tuples for partial feature
@@ -679,11 +681,11 @@ def res_global_co2_budget_rule(m):
 
 
 def res_global_cost_limit_rule(m):
-    if math.isinf(m.global_prop_dict["value"]["Cost limit"]):
+    if math.isinf(m.global_prop_dict["value"][min(m.stf), "Cost limit"]):
         return pyomo.Constraint.Skip
-    elif m.global_prop_dict["value"]["Cost limit"] >= 0:
+    elif m.global_prop_dict["value"][min(m.stf), "Cost limit"] >= 0:
         return(pyomo.summation(m.costs) <= m.global_prop_dict["value"]
-               ["Cost limit"])
+               [min(m.stf), "Cost limit"])
     else:
         return pyomo.Constraint.Skip
 
@@ -871,11 +873,3 @@ def co2_rule(m):
 
     return (co2_output_sum)
 
-
-def res_global_cost_limit_rule(m):
-    if math.isinf(m.global_prop_dict['value'][(min(m.stf), 'Cost budget')]):
-        return pyomo.Constraint.Skip
-    elif m.global_prop_dict['value'][(min(m.stf), 'Cost budget')] >= 0:
-        return(pyomo.summation(m.costs) <= m.global_prop_dict['value'][(min(m.stf), 'Cost budget')])
-    else:
-        return pyomo.Constraint.Skip

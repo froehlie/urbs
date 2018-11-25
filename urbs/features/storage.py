@@ -6,7 +6,7 @@ def add_storage(m):
     # storage (e.g. hydrogen, pump storage)
     indexlist = set()
     for key in m.storage_dict["eff-in"]:
-        indexlist.add(tuple(key)[1])
+        indexlist.add(tuple(key)[2])
     m.sto = pyomo.Set(
         initialize=indexlist,
         doc='Set of storage technologies')

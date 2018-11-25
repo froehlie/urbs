@@ -135,12 +135,21 @@ if __name__ == '__main__':
     # select scenarios to be run
     scenarios = [
         urbs.scenario_base,
-        # scenario_stock_prices,
-        # scenario_co2_limit,
-        # scenario_co2_tax_mid,
-        # scenario_no_dsm,
-        # scenario_north_process_caps,
-        # scenario_all_together
+        # urbs.scenario_base,
+        # urbs.scenario_base,
+        # urbs.scenario_base,
+        # urbs.scenario_base,
+        # urbs.scenario_base,
+        # urbs.scenario_base,
+        # urbs.scenario_base,
+        # urbs.scenario_base,
+        # urbs.scenario_base,
+        # urbs.scenario_stock_prices,
+        # urbs.scenario_co2_limit
+        # urbs.scenario_co2_tax_mid,
+        # urbs.scenario_no_dsm,
+        # urbs.scenario_north_process_caps,
+        # urbs.scenario_all_together
         ]
 
     # create timelog

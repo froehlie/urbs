@@ -7,7 +7,7 @@ def add_transmission(m):
     # tranmission (e.g. hvac, hvdc, pipeline...)
     indexlist = set()
     for key in m.transmission_dict["eff"]:
-        indexlist.add(tuple(key)[2])
+        indexlist.add(tuple(key)[3])
     m.tra = pyomo.Set(
         initialize=indexlist,
         doc='Set of transmission technologies')

@@ -57,7 +57,6 @@ def read_input(input_files):
         # identify mode of input_file
         with pd.ExcelFile(filename) as xls:
 
-            sheetnames = xls.sheet_names
             global_prop = xls.parse('Global').set_index(['Property'])
             # create support timeframe index
             if mode['int']:
@@ -208,13 +207,13 @@ def pyomo_model_prep(data, mode, timesteps):
     m.mode = mode
     m.timesteps = timesteps
     process = data['process']
-    commodity = data["commodity"]
+    commodity = data['commodity']
     # Converting Data frames to dict
     m.global_prop = data['global_prop'].drop('description', axis=1)
     m.global_prop_dict = m.global_prop.to_dict()
-    m.site_dict = data["site"].to_dict()
-    m.demand_dict = data["demand"].to_dict()
-    m.supim_dict = data["supim"].to_dict()
+    m.site_dict = data['site'].to_dict()
+    m.demand_dict = data['demand'].to_dict()
+    m.supim_dict = data['supim'].to_dict()
 
     # additional features
     if m.mode['tra']:
@@ -226,7 +225,7 @@ def pyomo_model_prep(data, mode, timesteps):
     if m.mode['bsp']:
         m.buy_sell_price_dict = data["buy_sell_price"].to_dict()
     if m.mode['eff']: 
-        m.eff_factor_dict = data["eff_factor"].to_dict()
+        eff_factor = data["eff_factor"]
 
     # Create columns of support timeframe values
     commodity['support_timeframe'] = (commodity.index.
@@ -240,7 +239,10 @@ def pyomo_model_prep(data, mode, timesteps):
     if m.mode['sto']:
         storage['support_timeframe'] = (storage.index.
                                     get_level_values('support_timeframe'))
-    
+    if m.mode['eff']:
+        eff_factor['support_timeframe'] = (eff_factor.index.
+                                    get_level_values('support_timeframe'))
+    import pdb; pdb.set_trace()
     # installed units for intertemporal planning
     m.inst_pro = process['inst-cap']
     m.inst_pro = m.inst_pro[m.inst_pro > 0]
@@ -283,11 +285,11 @@ def pyomo_model_prep(data, mode, timesteps):
     # storages with fixed initial state
     if m.mode['sto']:
         stor_init_bound = storage['init']
-        m.stor_init_bound_dict = stor_init_bound[m.stor_init_bound >= 0].to_dict()
+        m.stor_init_bound_dict = stor_init_bound[stor_init_bound >= 0].to_dict()
 
         # storages with fixed energy-to-power ratio
         sto_ep_ratio = storage['ep-ratio']
-        m.sto_ep_ratio_dict = sto_ep_ratio[m.sto_ep_ratio >= 0].to_dict()
+        m.sto_ep_ratio_dict = sto_ep_ratio[sto_ep_ratio >= 0].to_dict()
 
     
     # derive invcost factor from WACC and depreciation duration
@@ -458,6 +460,8 @@ def pyomo_model_prep(data, mode, timesteps):
         m.transmission_dict = transmission.to_dict()
     if m.mode['sto']:
         m.storage_dict = storage.to_dict()
+    if mode['eff']:
+        m.eff_factor_dict = eff_factor.to_dict()
     return m
 
 
