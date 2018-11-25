@@ -2,6 +2,7 @@ import math
 import pyomo.core as pyomo
 
 def add_time_variable_efficiency(m):
+    import pdb; pdb.set_trace()
     # process tuples for time variable efficiency
     m.pro_timevar_output_tuples = pyomo.Set(
         within=m.stf*m.sit*m.pro*m.com,
