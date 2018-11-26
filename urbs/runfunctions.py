@@ -64,9 +64,9 @@ def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt, objec
     Returns:
         the urbs model instance
     """
-
+    
     # start time measurement
-    start_time = time.process_time()
+    t_start = time.time()
 
     # scenario name, read and modify data for scenario
     sce = scenario.__name__
@@ -75,27 +75,42 @@ def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt, objec
     validate_input(data, mode)
 
     # measure time to read file
-    read_time = time.process_time()
-    print("Time to read file: %.2f sec" % (read_time - start_time))
+    t_read = time.time() - t_start
+    print("Time to read file: %.2f sec" % t_read)
 
+    t = time.time()
     # create model
     prob = create_model(data, mode, dt, timesteps, objective)
     prob.write('model.lp', io_options={'symbolic_solver_labels':True})
 
     # measure time to create model
-    model_time = time.process_time()
-    print("Time to create model: %.2f sec" % (model_time - read_time))
+    t_model = time.time() - t
+    print("Time to create model: %.2f sec" % t_model)
 
     # refresh time stamp string and create filename for logfile
+    # now = prob.created
     log_filename = os.path.join(result_dir, '{}.log').format(sce)
+
+    t = time.time()
 
     # solve model and read results
     optim = SolverFactory(Solver)  # cplex, glpk, gurobi, ...
     optim = setup_solver(optim, logfile=log_filename)
     result = optim.solve(prob, tee=True)
+    assert str(result.solver.termination_condition) == 'optimal'
+
+    t_solve = time.time() - t
+    print("Time to solve model: %.2f sec" % t_solve)
+
+    t = time.time()
 
     # save problem solution (and input data) to HDF5 file
-    # save(prob, os.path.join(result_dir, '{}.h5'.format(sce)))
+    save(prob, os.path.join(result_dir, '{}.h5'.format(sce)))
+
+    save_time = time.time() - t
+    print("Time to save solution in HDF5 file: %.2f sec" % save_time)
+
+    t = time.time()
 
     # write report to spreadsheet
     report(
@@ -115,18 +130,16 @@ def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt, objec
         periods=plot_periods,
         figure_size=(24, 9))
 
+    t_repplot = time.time() - t
+    print("Time to report and plot: %.2f sec" % t_repplot)
+
     # measure time to run scenario
-    sce_time = time.process_time()
-    print("Time to run scenario: %.2f sec" % (sce_time - start_time))
+    t_sce = time.time() - t_start
+    print("Time to run scenario: %.2f sec" % t_sce)
 
     # write time measurements into file "timelog.txt" in result directory
     timelog = open(os.path.join(result_dir, "timelog.txt"), "a")
-    timelog.write("Scenario: %s \r\n" % sce)
-    timelog.write("Time to run scenario: %.2f sec \r\n"
-                  % (sce_time - start_time))
-    timelog.write("Time to read file: %.2f sec \r\n"
-                  % (read_time - start_time))
-    timelog.write("Time to create model: %.2f sec \r\n\r\n"
-                  % (model_time - read_time))
+    timelog.write("%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%s\n"
+                  % (t_sce, t_read, t_model, t_solve, t_repplot, sce))
 
     return prob

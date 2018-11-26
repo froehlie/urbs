@@ -28,7 +28,7 @@ if __name__ == '__main__':
     Solver = 'gurobi'
 
     # simulation timesteps
-    (offset, length) = (3000, 168)  # time step selection
+    (offset, length) = (3500, 168)  # time step selection
     timesteps = range(offset, offset+length+1)
     dt = 1  # length of each time step (unit: hours)
 
@@ -153,6 +153,11 @@ if __name__ == '__main__':
         # urbs.scenario_north_process_caps,
         # urbs.scenario_all_together
         ]
+    
+    # create timelog
+    timelog = open(os.path.join(result_dir, "timelog.txt"), "a")
+    timelog.write("Total\tread\tmodel\tsolve\tplot\r\n")
+    timelog.close()
 
     for scenario in scenarios:
         prob = urbs.run_scenario(input_file, Solver, timesteps, scenario, 
