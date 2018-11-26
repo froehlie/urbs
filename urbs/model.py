@@ -796,6 +796,15 @@ def res_stock_step_rule(m, tm, stf, sit, com, com_type):
 def res_stock_total_rule(m, stf, sit, com, com_type):
     if com not in m.com_stock:
         return pyomo.Constraint.Skip
+    elif com == 'FLH':
+        total_consumption = 0
+        for tm in m.tm:
+            total_consumption += (
+                m.e_co_stock[tm, stf, sit, com, com_type])
+        total_consumption *= m.weight
+        return (total_consumption <=
+                m.cap_pro[stf, sit, 'CHP'] *
+                m.r_out_dict[(stf, 'CHP', 'Elec_CHP')] * 3500)
     else:
         # calculate total consumption of commodity com
         total_consumption = 0
