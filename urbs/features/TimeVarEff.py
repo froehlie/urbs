@@ -7,7 +7,7 @@ def add_time_variable_efficiency(m):
     m.pro_timevar_output_tuples = pyomo.Set(
         within=m.stf*m.sit*m.pro*m.com,
         initialize=[(stf, site, process, commodity)
-                    for stf in m.eff_factor_dict['support_timeframe']
+                    for stf in m.global_prop.index.levels[0]
                     for (site, process) in tuple(m.eff_factor_dict.keys())
                     for (st, pro, commodity) in tuple(m.r_out_dict.keys())
                     if process == pro and st == stf and commodity not in

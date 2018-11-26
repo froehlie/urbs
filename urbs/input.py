@@ -206,10 +206,11 @@ def pyomo_model_prep(data, mode, timesteps):
 
     m.mode = mode
     m.timesteps = timesteps
+    m.global_prop = data['global_prop'].drop('description', axis=1)
+    m.support_timeframe = m.global_prop.index.levels[0]
     process = data['process']
     commodity = data['commodity']
     # Converting Data frames to dict
-    m.global_prop = data['global_prop'].drop('description', axis=1)
     m.global_prop_dict = m.global_prop.to_dict()
     m.site_dict = data['site'].to_dict()
     m.demand_dict = data['demand'].to_dict()
@@ -242,7 +243,9 @@ def pyomo_model_prep(data, mode, timesteps):
     if m.mode['eff']:
         eff_factor['support_timeframe'] = (eff_factor.index.
                                     get_level_values('support_timeframe'))
+
     import pdb; pdb.set_trace()
+
     # installed units for intertemporal planning
     m.inst_pro = process['inst-cap']
     m.inst_pro = m.inst_pro[m.inst_pro > 0]

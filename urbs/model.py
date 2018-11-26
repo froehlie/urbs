@@ -368,6 +368,11 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         doc='e_pro_out = '
             ' cap_pro * min_fraction * (r - R) / (1 - min_fraction)'
             ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')
+    if m.mode['int']:
+        m.res_global_co2_limit = pyomo.Constraint(
+            m.stf,
+            rule=res_global_co2_limit_rule,
+            doc='total co2 commodity output <= global.prop CO2 limit')
 
     # costs
     m.def_costs = pyomo.Constraint(
@@ -378,9 +383,15 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
     # objective and global constraints
     if m.obj.value == 'cost':
 
-        m.res_global_co2_limit = pyomo.Constraint(
-            rule=res_global_co2_limit_rule,
-            doc='total co2 commodity output <= Global CO2 limit')
+        if m.mode['int']:
+            m.res_global_co2_limit = pyomo.Constraint(
+                rule=res_global_co2_limit_rule,
+                doc='total co2 commodity output <= Global CO2 limit')
+        else:
+            m.res_global_co2_limit = pyomo.Constraint(
+                m.stf,
+                rule=res_global_co2_limit_rule,
+                doc='total co2 commodity output <= global.prop CO2 limit')
 
         m.objective_function = pyomo.Objective(
             rule=cost_rule,
@@ -389,9 +400,10 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
 
     elif m.obj.value == 'CO2':
 
-        m.res_global_cost_limit = pyomo.Constraint(
-            rule=res_global_cost_limit_rule,
-            doc='total costs <= Global cost limit')
+        if m.mode['int']:
+            m.res_global_cost_limit = pyomo.Constraint(
+                rule=res_global_cost_limit_rule,
+                doc='total costs <= Global cost limit')
 
         m.objective_function = pyomo.Objective(
             rule=co2_rule,
@@ -585,7 +597,7 @@ def res_throughput_by_capacity_min_rule(m, tm, stf, sit, pro):
 
 def def_partial_process_input_rule(m, tm, stf, sit, pro, coin):
     # input ratio at maximum operation point
-    R = m.r_in_dict[(pro, coin)]
+    R = m.r_in_dict[(stf, pro, coin)]
     # input ratio at lowest operation point
     r = m.r_in_min_fraction_dict[stf, pro, coin]
     min_fraction = m.process_dict['min-fraction'][(stf, sit, pro)]
@@ -600,9 +612,9 @@ def def_partial_process_input_rule(m, tm, stf, sit, pro, coin):
 
 def def_partial_process_output_rule(m, tm, stf, sit, pro, coo):
     # input ratio at maximum operation point
-    R = m.r_out_dict[pro, coo]
+    R = m.r_out_dict[stf, pro, coo]
     # input ratio at lowest operation point
-    r = m.r_out_min_fraction_dict[pro, coo]
+    r = m.r_out_min_fraction_dict[stf, pro, coo]
     min_fraction = m.process_dict['min-fraction'][(stf, sit, pro)]
 
     online_factor = min_fraction * (r - R) / (1 - min_fraction)
@@ -658,7 +670,7 @@ def res_global_co2_limit_rule(m, stf):
 
 # CO2 output in entire period <= Global CO2 budget
 def res_global_co2_budget_rule(m):
-    if math.isinf(m.global_prop.loc[m.global_prop.index.min()[0], 'CO2 budget']
+    if math.isinf(m.global_prop_dict['value'][m.global_prop.index.min()[0], 'CO2 budget']
                                    ['value']):
         return pyomo.Constraint.Skip
     elif (m.global_prop.loc[m.global_prop.index.min()[0], 'CO2 budget']

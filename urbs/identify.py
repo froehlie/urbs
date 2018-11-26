@@ -37,25 +37,25 @@ def identify_mode(filename):
                                         .set_index('Property').value:
             mode['int'] = True
         # Transmission mode
-        if 'Transmission' in xls.sheet_names \
-            and not xls.parse('Transmission').set_index(['Site In', 
-                            'Site Out', 'Transmission', 'Commodity']).empty:
+        if 'Transmission' in xls.sheet_names:
+            # and not xls.parse('Transmission').set_index(['Site In', 
+            #                 'Site Out', 'Transmission', 'Commodity']).empty:
             mode['tra'] = True
         # Storage mode
-        if 'Storage' in xls.sheet_names \
-        and not xls.parse('Storage').set_index(['Site', 'Storage', 
-                                                'Commodity']).empty:
+        if 'Storage' in xls.sheet_names:
+        # and not xls.parse('Storage').set_index(['Site', 'Storage', 
+        #                                         'Commodity']).empty:
             mode['sto'] = True
         # Demand side management mode
-        if 'DSM' in xls.sheet_names \
-        and not xls.parse('DSM').set_index(['Site', 'Commodity']).empty:
+        if 'DSM' in xls.sheet_names:
+        # and not xls.parse('DSM').set_index(['Site', 'Commodity']).empty:
             mode['dsm'] = True
         # Buy sell price mode
-        if 'Buy-Sell-Price' in xls.sheet_names \
-        and not xls.parse('Buy-Sell-Price').set_index(['t']).empty:
+        if 'Buy-Sell-Price' in xls.sheet_names:
+        # and not xls.parse('Buy-Sell-Price').set_index(['t']).empty:
             mode['bsp'] = True 
-        if 'TimeVarEff' in xls.sheet_names \
-        and not xls.parse('TimeVarEff').set_index(['t']).empty:
+        if 'TimeVarEff' in xls.sheet_names:
+        # and not xls.parse('TimeVarEff').set_index(['t']).empty:
             mode['eff'] = True  
 
     return mode
