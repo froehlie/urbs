@@ -670,11 +670,9 @@ def res_global_co2_limit_rule(m, stf):
 
 # CO2 output in entire period <= Global CO2 budget
 def res_global_co2_budget_rule(m):
-    if math.isinf(m.global_prop_dict['value'][m.global_prop.index.min()[0], 'CO2 budget']
-                                   ['value']):
+    if math.isinf(m.global_prop_dict['value'][min(m.stf_list), 'CO2 budget']):
         return pyomo.Constraint.Skip
-    elif (m.global_prop.loc[m.global_prop.index.min()[0], 'CO2 budget']
-          ['value']) >= 0:
+    elif (m.global_prop_dict['value'][min(m.stf_list), 'CO2 budget']) >= 0:
         co2_output_sum = 0
         for stf in m.stf:
             for tm in m.tm:

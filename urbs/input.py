@@ -206,12 +206,11 @@ def pyomo_model_prep(data, mode, timesteps):
 
     m.mode = mode
     m.timesteps = timesteps
-    m.global_prop = data['global_prop'].drop('description', axis=1)
-    m.support_timeframe = m.global_prop.index.levels[0]
+    m.stf_list = data['global_prop'].index.levels[0].tolist()
     process = data['process']
     commodity = data['commodity']
     # Converting Data frames to dict
-    m.global_prop_dict = m.global_prop.to_dict()
+    m.global_prop_dict = data['global_prop'].to_dict()
     m.site_dict = data['site'].to_dict()
     m.demand_dict = data['demand'].to_dict()
     m.supim_dict = data['supim'].to_dict()
@@ -226,7 +225,7 @@ def pyomo_model_prep(data, mode, timesteps):
     if m.mode['bsp']:
         m.buy_sell_price_dict = data["buy_sell_price"].to_dict()
     if m.mode['eff']: 
-        eff_factor = data["eff_factor"]
+        m.eff_factor_dict = data["eff_factor"].to_dict()
 
     # Create columns of support timeframe values
     commodity['support_timeframe'] = (commodity.index.
@@ -240,11 +239,6 @@ def pyomo_model_prep(data, mode, timesteps):
     if m.mode['sto']:
         storage['support_timeframe'] = (storage.index.
                                     get_level_values('support_timeframe'))
-    if m.mode['eff']:
-        eff_factor['support_timeframe'] = (eff_factor.index.
-                                    get_level_values('support_timeframe'))
-
-    import pdb; pdb.set_trace()
 
     # installed units for intertemporal planning
     m.inst_pro = process['inst-cap']
@@ -463,8 +457,6 @@ def pyomo_model_prep(data, mode, timesteps):
         m.transmission_dict = transmission.to_dict()
     if m.mode['sto']:
         m.storage_dict = storage.to_dict()
-    if mode['eff']:
-        m.eff_factor_dict = eff_factor.to_dict()
     return m
 
 
