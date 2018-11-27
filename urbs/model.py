@@ -137,7 +137,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         initialize=commodity_subset(m.com_tuples, 'Stock'),
         doc='Commodities that can be purchased at some site(s)')
 
-    
     if m.mode['int']:
         # tuples for operational status of technologies
         m.operational_pro_tuples = pyomo.Set(
@@ -320,11 +319,17 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         m.tm, m.pro_input_tuples - m.pro_partial_input_tuples,
         rule=def_process_input_rule,
         doc='process input = process throughput * input ratio')
-    m.def_process_output = pyomo.Constraint(
-        m.tm, (m.pro_output_tuples - m.pro_partial_output_tuples -
-               m.pro_timevar_output_tuples),
-        rule=def_process_output_rule,
-        doc='process output = process throughput * output ratio')
+    if m.mode['eff']:
+        m.def_process_output = pyomo.Constraint(
+            m.tm, (m.pro_output_tuples - m.pro_partial_output_tuples -
+                m.pro_timevar_output_tuples),
+            rule=def_process_output_rule,
+            doc='process output = process throughput * output ratio')
+    else:
+        m.def_process_output = pyomo.Constraint(
+            m.tm, (m.pro_output_tuples - m.pro_partial_output_tuples),
+            rule=def_process_output_rule,
+            doc='process output = process throughput * output ratio')
     m.def_intermittent_supply = pyomo.Constraint(
         m.tm, m.pro_input_tuples,
         rule=def_intermittent_supply_rule,
@@ -361,13 +366,22 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         doc='e_pro_in = '
             ' cap_pro * min_fraction * (r - R) / (1 - min_fraction)'
             ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')
-    m.def_partial_process_output = pyomo.Constraint(
-        m.tm, (m.pro_partial_output_tuples -
-               (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-        rule=def_partial_process_output_rule,
-        doc='e_pro_out = '
-            ' cap_pro * min_fraction * (r - R) / (1 - min_fraction)'
-            ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')
+    if m.mode['eff']:
+        m.def_partial_process_output = pyomo.Constraint(
+            m.tm, (m.pro_partial_output_tuples -
+                (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+            rule=def_partial_process_output_rule,
+            doc='e_pro_out = '
+                ' cap_pro * min_fraction * (r - R) / (1 - min_fraction)'
+                ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')
+    else:
+        m.def_partial_process_output = pyomo.Constraint(
+            m.tm, (m.pro_partial_output_tuples - m.pro_partial_output_tuples),
+            rule=def_partial_process_output_rule,
+            doc='e_pro_out = '
+                ' cap_pro * min_fraction * (r - R) / (1 - min_fraction)'
+                ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')        
+    
     if m.mode['int']:
         m.res_global_co2_limit = pyomo.Constraint(
             m.stf,
@@ -384,14 +398,13 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
     if m.obj.value == 'cost':
 
         if m.mode['int']:
+            m.res_global_co2_budget = pyomo.Constraint(
+                rule=res_global_co2_budget_rule,
+                doc='total co2 commodity output <= global.prop CO2 budget')           
+        else: 
             m.res_global_co2_limit = pyomo.Constraint(
                 rule=res_global_co2_limit_rule,
                 doc='total co2 commodity output <= Global CO2 limit')
-        else:
-            m.res_global_co2_limit = pyomo.Constraint(
-                m.stf,
-                rule=res_global_co2_limit_rule,
-                doc='total co2 commodity output <= global.prop CO2 limit')
 
         m.objective_function = pyomo.Objective(
             rule=cost_rule,
@@ -685,7 +698,7 @@ def res_global_co2_budget_rule(m):
                                        stf_dist(stf, m))
 
         return (co2_output_sum <=
-                m.global_prop.loc[m.stf, 'CO2 budget']['value'])
+                m.global_prop_dict['value'][m.stf, 'CO2 budget'])
     else:
         return pyomo.Constraint.Skip
 

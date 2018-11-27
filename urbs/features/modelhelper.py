@@ -1,73 +1,82 @@
 from .transmission import transmission_balance
 from .storage import storage_balance
 
-def invcost_factor(n, i, j=None, year_built=None, stf_min=None):
+def invcost_factor(dep_prd, interest, discount=None, year_built=None, 
+                   stf_min=None):
     """Investment cost factor formula.
     Evaluates the factor multiplied to the invest costs
     for depreciation duration and interest rate.
     Args:
-        n: depreciation period (years)
-        i: interest rate (e.g. 0.06 means 6 %)
+        dep_prd: depreciation period (years)
+        interest: interest rate (e.g. 0.06 means 6 %)
         year_built: year utility is built
-        j: discount rate for intertmeporal planning
+        discount: discount rate for intertmeporal planning
     """
     # invcost factor for non intertemporal planning
-    if j == None:
-        if i == 0:
-            return 1 / n
+    if discount == None:
+        if interest == 0:
+            return 1 / dep_prd
         else:
-            return (1+i)**n * i / ((1+i)**n - 1)
-    elif j == 0:
-        if i == 0:
+            return ((1+interest)**dep_prd * interest /
+                    ((1+interest)**dep_prd - 1))
+    elif discount == 0:
+        if interest == 0:
             return 1
         else:
-            return n * ((1+i) ** n * i)/((1+i) ** n - 1)
+            return (dep_prd * ((1+interest) ** dep_prd * interest) /
+                    ((1+interest) ** dep_prd - 1))
     else:
-        if i == 0:
-            return ((1+j) ** (1-(year_built-stf_min)) *
-                    ((1+j) ** n - 1) / (n * j * (1+j) ** n))
+        if interest == 0:
+            return ((1+discount) ** (1-(year_built-stf_min)) *
+                    ((1+discount) ** dep_prd - 1) /
+                    (dep_prd* discount * (1+discount) ** dep_prd))
         else:
-            return ((1+j) ** (1-(year_built-stf_min)) *
-                    (i * (1+i) ** n * ((1+j) ** n - 1)) /
-                    (j * (1+j) ** n * ((1+i) ** n - 1)))
+            return ((1+discount) ** (1-(year_built-stf_min)) *
+                    (interest * (1+interest) ** dep_prd *
+                    ((1+discount) ** dep_prd - 1)) /
+                    (discount * (1+discount) ** dep_prd *
+                    ((1+interest) ** dep_prd - 1)))
 
 
-def overpay_factor(n, i, j, year_built, stf_min, stf_end):
+def overpay_factor(dep_prd, interest, discount, year_built, stf_min, stf_end):
     """Overpay value factor formula.
     Evaluates the factor multiplied to the invest costs
     for all annuity payments of a unit after the end of the
     optimization period.
     Args:
-        n: depreciation period (years)
-        i: interest rate (e.g. 0.06 means 6 %)
+        dep_prd: depreciation period (years)
+        interest: interest rate (e.g. 0.06 means 6 %)
         year_built: year utility is built
-        j: discount rate for intertmeporal planning
+        discount: discount rate for intertmeporal planning
         k: operational time after simulation horizon
     """
 
-    k = (year_built + n) - stf_end - 1
+    op_time = (year_built + dep_prd) - stf_end - 1
 
-    if j == 0:
-        if i == 0:
-            return k / n
+    if discount == 0:
+        if interest == 0:
+            return op_time / dep_prd
         else:
-            return k * ((1+i) ** n * i)/((1+i) ** n - 1)
+            return (op_time * ((1+interest) ** dep_prd * interest)/
+                    ((1+interest) ** dep_prd - 1))
     else:
-        if i == 0:
-            return ((1+j) ** (1-(year_built-stf_min)) *
-                    ((1+j) ** k - 1) / (n * j * (1+j) ** n))
+        if interest == 0:
+            return ((1+discount) ** (1-(year_built-stf_min)) *
+                    ((1+discount) ** op_time - 1) /
+                    (dep_prd * discount * (1+discount) ** dep_prd))
         else:
-            return ((1+j) ** (1-(year_built-stf_min)) *
-                    (i * (1+i) ** n * ((1+j) ** k - 1)) /
-                    (j * (1+j) ** n * ((1+i) ** n - 1)))
+            return ((1+discount) ** (1-(year_built-stf_min)) *
+                    (interest * (1+interest) ** dep_prd *
+                    ((1+discount) ** op_time - 1)) /
+                    (discount * (1+discount) ** dep_prd *
+                    ((1+interest) ** dep_prd - 1)))
 
 
 # Energy related costs
 def stf_dist(stf, m):
     """Calculates the distance between the modeled support timeframes.
     """
-    sorted_stf = sorted(list(m.commodity.index.
-                             get_level_values('support_timeframe').unique()))
+    sorted_stf = sorted(m.stf_list)
     dist = []
 
     for s in sorted_stf:
@@ -160,16 +169,17 @@ def op_pro_tuples(pro_tuple, m):
     op_pro = []
     sorted_stf = sorted(list(m.stf))
 
+
     for (stf, sit, pro) in pro_tuple:
         for stf_later in sorted_stf:
             index_helper = sorted_stf.index(stf_later)
             if stf_later == max(sorted_stf):
                 if (stf_later +
                    m.global_prop.loc[(max(sorted_stf), 'Weight'), 'value'] - 1
-                   <= stf + m.process.loc[(stf, sit, pro), 'depreciation']):
+                   <= stf + m.process_dict['depreciation'][(stf, sit, pro)]):
                     op_pro.append((sit, pro, stf, stf_later))
             elif (sorted_stf[index_helper+1] <=
-                  stf + m.process.loc[(stf, sit, pro), 'depreciation'] and
+                  stf + m.process_dict['depreciation'][(stf, sit, pro)] and
                   stf <= stf_later):
                 op_pro.append((sit, pro, stf, stf_later))
             else:
@@ -192,12 +202,10 @@ def inst_pro_tuples(m):
             if stf_later == max(m.stf):
                 if (stf_later +
                    m.global_prop.loc[(max(sorted_stf), 'Weight'), 'value'] - 1
-                   < min(m.stf) + m.process.loc[(stf, sit, pro),
-                                                'lifetime']):
+                   < min(m.stf) + m.process_dict['lifetime'][(stf, sit, pro)]):
                     inst_pro.append((sit, pro, stf_later))
             elif (sorted_stf[index_helper+1] <=
-                  min(m.stf) + m.process.loc[(stf, sit, pro),
-                                             'lifetime']):
+                  min(m.stf) + m.process_dict['lifetime'][(stf, sit, pro)]):
                 inst_pro.append((sit, pro, stf_later))
 
     return inst_pro

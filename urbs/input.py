@@ -27,7 +27,7 @@ def read_input(input_files):
 
     Example:
         >>> data = read_excel('mimo-example.xlsx')
-        >>> data['global_prop'].loc['CO2 limit', 'value']
+        >>> data['m.global_prop'].loc['CO2 limit', 'value']
         150000000
     """
     if input_files == 'Input':
@@ -173,6 +173,7 @@ def read_input(input_files):
         'demand': demand,
         'supim': supim,
         }
+
     # write data for additional features into "data"
     if mode['tra']:
         data['transmission'] = transmission
@@ -204,13 +205,16 @@ def pyomo_model_prep(data, mode, timesteps):
     #     storage.loc[site, storage, commodity][attribute]
     #
 
+
     m.mode = mode
     m.timesteps = timesteps
-    m.stf_list = data['global_prop'].index.levels[0].tolist()
+    m.global_prop = data['global_prop']
     process = data['process']
     commodity = data['commodity']
+    # create list with all support timeframe values
+    m.stf_list = m.global_prop.index.levels[0].tolist()
     # Converting Data frames to dict
-    m.global_prop_dict = data['global_prop'].to_dict()
+    # Data frames that need to be modified will be converted after modification
     m.site_dict = data['site'].to_dict()
     m.demand_dict = data['demand'].to_dict()
     m.supim_dict = data['supim'].to_dict()
@@ -284,9 +288,12 @@ def pyomo_model_prep(data, mode, timesteps):
         stor_init_bound = storage['init']
         m.stor_init_bound_dict = stor_init_bound[stor_init_bound >= 0].to_dict()
 
-        # storages with fixed energy-to-power ratio
-        sto_ep_ratio = storage['ep-ratio']
-        m.sto_ep_ratio_dict = sto_ep_ratio[sto_ep_ratio >= 0].to_dict()
+        try:
+            # storages with fixed energy-to-power ratio
+            sto_ep_ratio = storage['ep-ratio']
+            m.sto_ep_ratio_dict = sto_ep_ratio[sto_ep_ratio >= 0].to_dict()
+        except KeyError:
+            m.sto_ep_ratio_dict = {}
 
     
     # derive invcost factor from WACC and depreciation duration
@@ -450,13 +457,16 @@ def pyomo_model_prep(data, mode, timesteps):
         
 
     # Converting Data frames to dictionaries
-    m.commodity_dict = commodity.to_dict()
+    m.global_prop_dict = m.global_prop.to_dict()
     m.process_dict = process.to_dict()
-    # additional features
+    m.commodity_dict = commodity.to_dict()
+
+    # dictionaries for additional features
     if m.mode['tra']:
         m.transmission_dict = transmission.to_dict()
     if m.mode['sto']:
         m.storage_dict = storage.to_dict()
+
     return m
 
 
