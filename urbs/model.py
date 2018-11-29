@@ -304,11 +304,18 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         m.tm, m.pro_input_tuples - m.pro_partial_input_tuples,
         rule=def_process_input_rule,
         doc='process input = process throughput * input ratio')
-    m.def_process_output = pyomo.Constraint(
-        m.tm, (m.pro_output_tuples - m.pro_partial_output_tuples -
-               m.pro_timevar_output_tuples),
-        rule=def_process_output_rule,
-        doc='process output = process throughput * output ratio')
+    if m.mode['eff']:
+        m.def_process_output = pyomo.Constraint(
+            m.tm, (m.pro_output_tuples - m.pro_partial_output_tuples -
+                m.pro_timevar_output_tuples),
+            rule=def_process_output_rule,
+            doc='process output = process throughput * output ratio')
+    else:
+        m.def_process_output = pyomo.Constraint(
+            m.tm, (m.pro_output_tuples - m.pro_partial_output_tuples),
+            rule=def_process_output_rule,
+            doc='process output = process throughput * output ratio')
+
     m.def_intermittent_supply = pyomo.Constraint(
         m.tm, m.pro_input_tuples,
         rule=def_intermittent_supply_rule,
@@ -345,13 +352,22 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         doc='e_pro_in = '
             ' cap_pro * min_fraction * (r - R) / (1 - min_fraction)'
             ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')
-    m.def_partial_process_output = pyomo.Constraint(
-        m.tm, (m.pro_partial_output_tuples -
-               (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
-        rule=def_partial_process_output_rule,
-        doc='e_pro_out = '
-            ' cap_pro * min_fraction * (r - R) / (1 - min_fraction)'
-            ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')
+    if m.mode['eff']:
+        m.def_partial_process_output = pyomo.Constraint(
+            m.tm, (m.pro_partial_output_tuples -
+                (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+            rule=def_partial_process_output_rule,
+            doc='e_pro_out = '
+                ' cap_pro * min_fraction * (r - R) / (1 - min_fraction)'
+                ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')
+    else:
+        m.def_partial_process_output = pyomo.Constraint(
+            m.tm, (m.pro_partial_output_tuples - m.pro_partial_output_tuples),
+            rule=def_partial_process_output_rule,
+            doc='e_pro_out = '
+                ' cap_pro * min_fraction * (r - R) / (1 - min_fraction)'
+                ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')
+
 
     # costs
     m.def_costs = pyomo.Constraint(

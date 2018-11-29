@@ -5,3 +5,6 @@ Error reading LP format file H:\TUM-PC\Dokumente\GitHub\froehlie\urbs-for-parall
 Malformed term in expression
 Neighboring tokens: " nan x14598 +1 x392970 = 0 c_e_x794981_: "
 
+
+Gurobi 7.0.2 (win64, Python) logging started 11/29/18 10:21:56
+
