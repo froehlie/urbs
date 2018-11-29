@@ -130,7 +130,7 @@ def read_input(input_files):
                                         keys=[support_timeframe],
                                         names=['support_timeframe'])
                 bsp.append(buy_sell_price)
-            if mode['eff']:
+            if mode['tve']:
                 eff_factor = (xls.parse('TimeVarEff').set_index(['t']))
                 eff_factor = pd.concat([eff_factor], keys=[support_timeframe],
                                        names=['support_timeframe'])
@@ -160,7 +160,7 @@ def read_input(input_files):
             dsm = pd.concat(ds)
         if mode['bsp']:
             buy_sell_price = pd.concat(bsp)
-        if mode['eff']:
+        if mode['tve']:
             eff_factor = pd.concat(ef)
 
 
@@ -183,7 +183,7 @@ def read_input(input_files):
         data['dsm'] = dsm
     if mode['bsp']:
         data['buy_sell_price'] = buy_sell_price
-    if mode['eff']:
+    if mode['tve']:
         data['eff_factor'] = eff_factor       
 
     # sort nested indexes to make direct assignments work
@@ -228,7 +228,7 @@ def pyomo_model_prep(data, mode, timesteps):
         m.dsm_dict = data["dsm"].to_dict()
     if m.mode['bsp']:
         m.buy_sell_price_dict = data["buy_sell_price"].to_dict()
-    if m.mode['eff']: 
+    if m.mode['tve']: 
         m.eff_factor_dict = data["eff_factor"].to_dict()
 
     # Create columns of support timeframe values
@@ -245,14 +245,15 @@ def pyomo_model_prep(data, mode, timesteps):
                                     get_level_values('support_timeframe'))
 
     # installed units for intertemporal planning
-    m.inst_pro = process['inst-cap']
-    m.inst_pro = m.inst_pro[m.inst_pro > 0]
-    if m.mode['tra']:
-        m.inst_tra = transmission['inst-cap']
-        m.inst_tra = m.inst_tra[m.inst_tra > 0]
-    if m.mode['sto']:
-        m.inst_sto = storage['inst-cap-p']
-        m.inst_sto = m.inst_sto[m.inst_sto > 0]
+    if m.mode['int']:
+        m.inst_pro = process['inst-cap']
+        m.inst_pro = m.inst_pro[m.inst_pro > 0]
+        if m.mode['tra']:
+            m.inst_tra = transmission['inst-cap']
+            m.inst_tra = m.inst_tra[m.inst_tra > 0]
+        if m.mode['sto']:
+            m.inst_sto = storage['inst-cap-p']
+            m.inst_sto = m.inst_sto[m.inst_sto > 0]
 
     # process input/output ratios
     m.r_in_dict = (data['process_commodity'].xs('In', level='Direction')

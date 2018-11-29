@@ -267,6 +267,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         doc='Power flow out of process (MW) per timestep')
    
     # Add additional features
+    # called features are declared in distinct file in features folder
     if m.mode['tra']:
         m = add_transmission(m)
     if m.mode['sto']:
@@ -275,7 +276,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         m = add_dsm(m)
     if m.mode['bsp']:
         m = add_buy_sell_price(m)
-    if m.mode['eff']:
+    if m.mode['tve']:
         m = add_time_variable_efficiency(m)
 
     # Equation declarations
@@ -319,7 +320,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         m.tm, m.pro_input_tuples - m.pro_partial_input_tuples,
         rule=def_process_input_rule,
         doc='process input = process throughput * input ratio')
-    if m.mode['eff']:
+    if m.mode['tve']:
         m.def_process_output = pyomo.Constraint(
             m.tm, (m.pro_output_tuples - m.pro_partial_output_tuples -
                 m.pro_timevar_output_tuples),
@@ -366,7 +367,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         doc='e_pro_in = '
             ' cap_pro * min_fraction * (r - R) / (1 - min_fraction)'
             ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')
-    if m.mode['eff']:
+    if m.mode['tve']:
         m.def_partial_process_output = pyomo.Constraint(
             m.tm, (m.pro_partial_output_tuples -
                 (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
@@ -403,6 +404,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
                 doc='total co2 commodity output <= global.prop CO2 budget')           
         else: 
             m.res_global_co2_limit = pyomo.Constraint(
+                m.stf,
                 rule=res_global_co2_limit_rule,
                 doc='total co2 commodity output <= Global CO2 limit')
 

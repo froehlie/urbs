@@ -9,7 +9,7 @@ from pyomo.opt.base import SolverFactory
 
 if __name__ == '__main__':
     input_file = 'Input'
-    result_name = 'Intertemporal'
+    result_name = 'Mimo-ex'
     # problem without Input folder
     # result_name = os.path.splitext(input_file)[0]  # cut away file extension
     result_dir = urbs.prepare_result_directory(result_name)  # name + time stamp
@@ -23,13 +23,14 @@ if __name__ == '__main__':
     objective = 'cost' # set either 'cost' or 'CO2' as objective
 
     # Choose Solver (cplex, glpk, gurobi, ...)
-    Solver = 'gurobi'
+    Solver = 'cplex'
 
     # simulation timesteps
     (offset, length) = (3500, 168)  # time step selection
     timesteps = range(offset, offset+length+1)
     dt = 1  # length of each time step (unit: hours)
 
+    # Non Intertemporal
     # plotting commodities/sites
     plot_tuples = [
         (2018, 'North', 'Elec'),
@@ -135,15 +136,15 @@ if __name__ == '__main__':
     # select scenarios to be run
     scenarios = [
         urbs.scenario_base,
-        # urbs.scenario_base,
-        # urbs.scenario_base,
-        # urbs.scenario_base,
-        # urbs.scenario_base,
-        # urbs.scenario_base,
-        # urbs.scenario_base,
-        # urbs.scenario_base,
-        # urbs.scenario_base,
-        # urbs.scenario_base,
+        urbs.scenario_base,
+        urbs.scenario_base,
+        urbs.scenario_base,
+        urbs.scenario_base,
+        urbs.scenario_base,
+        urbs.scenario_base,
+        urbs.scenario_base,
+        urbs.scenario_base,
+        urbs.scenario_base,
         # urbs.scenario_stock_prices,
         # urbs.scenario_co2_limit
         # urbs.scenario_co2_tax_mid,

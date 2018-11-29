@@ -10,25 +10,26 @@ def identify_mode(filename):
     Transmission
     Storage
     DSM
-    Buy Sell
-    Variable efficiency
+    Buy Sell (Price)
+    Time Variable efficiency
     
     
     Args:
-        data: a dict of 6 DataFrames with the keys 'commodity', 'process',
-            'transmission', 'storage', 'demand' and 'supim'.
+        the input excel file, in case of intertemporal planning the first excel
+        file in the Input folder
     
     Returns:
-        result: a bool vector which defines the urbs mode"""
+        mode dictionary: contain bool values that define the urbs mode
+    """
 
     # create modes
     mode = {
-        'int': False,
-        'tra': False,
-        'sto': False,
-        'dsm': False,
-        'bsp': False,
-        'eff': False
+        'int': False,   # intertemporal
+        'tra': False,   # transmission
+        'sto': False,   # storage
+        'dsm': False,   # demand site management
+        'bsp': False,   # buy sell price
+        'tve': False    # time variable efficiency
         }
 
     with pd.ExcelFile(filename) as xls:
@@ -56,6 +57,6 @@ def identify_mode(filename):
             mode['bsp'] = True 
         if 'TimeVarEff' in xls.sheet_names \
             and not xls.parse('TimeVarEff').set_index(['t']).empty:
-            mode['eff'] = True  
+            mode['tve'] = True  
 
     return mode
