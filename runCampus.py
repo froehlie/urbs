@@ -19,10 +19,10 @@ result_dir = urbs.prepare_result_directory(result_name) # name + time stamp
 objective = 'cost' # set either 'cost' or 'CO2' as objective
 
 # Choose Solver (cplex, glpk, gurobi, ...)
-Solver = 'gurobi'
+Solver = 'cplex'
 
 # simulation timesteps
-(offset, length) = (3000, 168)  # time step selection
+(offset, length) = (3500, 168)  # time step selection
 timesteps = range(offset, offset+length+1)
 dt=1
 
@@ -126,6 +126,11 @@ scenarios = [
              # urbs.sc_1proprop('Campus', 'PV S 30°', 'inv-cost', 600000)
 ]
 
+# create timelog
+timelog = open(os.path.join(result_dir, "timelog.txt"), "a")
+timelog.write("Total\tread\tmodel\tsolve\tplot\r\n")
+timelog.close()
+
 for scenario in scenarios:
     prob = urbs.run_scenario(input_files, Solver, timesteps, scenario,
                         result_dir, dt,
@@ -135,3 +140,6 @@ for scenario in scenarios:
                         plot_periods=plot_periods,
                         report_tuples=report_tuples,
                         report_sites_name=report_sites_name)
+
+# open timelog file
+os.startfile(os.path.join(result_dir, "timelog.txt"))
