@@ -99,10 +99,10 @@ def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt, objec
     result = optim.solve(prob, tee=True)
     assert str(result.solver.termination_condition) == 'optimal'
 
-    t_solve = time.time() - t
-    print("Time to solve model: %.2f sec" % t_solve)
+    # t_solve = time.time() - t
+    # print("Time to solve model: %.2f sec" % t_solve)
 
-    t = time.time()
+    # t = time.time()
 
     # save problem solution (and input data) to HDF5 file
     save(prob, os.path.join(result_dir, '{}.h5'.format(sce)))
