@@ -4,16 +4,18 @@ import pyomo.core as pyomo
 def add_storage(m):
 
     # storage (e.g. hydrogen, pump storage)
+    indexlist = set()
+    for key in m.storage_dict["eff-in"]:
+        indexlist.add(tuple(key)[2])
     m.sto = pyomo.Set(
-        initialize=m.storage.index.get_level_values('Storage').unique(),
+        initialize=indexlist,
         doc='Set of storage technologies')
     
     # storage tuples
     m.sto_tuples = pyomo.Set(
         within=m.stf*m.sit*m.sto*m.com,
-        initialize=m.storage.index,
-        doc='Combinations of possible storage by site,'
-            'e.g. (2020,Mid,Bat,Elec)')
+        initialize=tuple(m.storage_dict["eff-in"].keys()),
+        doc='Combinations of possible storage by site, e.g. (2020,Mid,Bat,Elec)')
     
     # tuples for intertemporal operation
     if m.mode['int']:
@@ -35,13 +37,13 @@ def add_storage(m):
     # storage tuples for storages with fixed initial state
     m.sto_init_bound_tuples = pyomo.Set(
         within=m.stf*m.sit*m.sto*m.com,
-        initialize=m.stor_init_bound.index,
+        initialize=tuple(m.stor_init_bound_dict.keys()),
     doc='storages with fixed initial state')
 
     # storage tuples for storages with given energy to power ratio
     m.sto_ep_ratio_tuples = pyomo.Set(
         within=m.stf*m.sit*m.sto*m.com,
-        initialize=m.sto_ep_ratio.index,
+        initialize=tuple(m.sto_ep_ratio_dict.keys()),
         doc='storages with given energy to power ratio')
 
     # Variables
@@ -278,13 +280,12 @@ def op_sto_tuples(sto_tuple, m):
             index_helper = sorted_stf.index(stf_later)
             if stf_later == max(sorted_stf):
                 if (stf_later +
-                   m.global_prop.loc[(max(sorted_stf), 'Weight'), 'value'] - 1
-                   <= stf + m.storage.loc[(stf, sit, sto, com),
-                                          'depreciation']):
+                   m.global_prop_dict['value'][(max(sorted_stf), 'Weight')] - 1
+                   <= stf + m.storage_dict['depreciation'][(stf, sit, sto, com)]):
                     op_sto.append((sit, sto, com, stf, stf_later))
             elif (sorted_stf[index_helper+1] <=
                   stf +
-                  m.storage.loc[(stf, sit, sto, com), 'depreciation'] and
+                  m.storage_dict['depreciation'][(stf, sit, sto, com)]  and
                   stf <= stf_later):
                 op_sto.append((sit, sto, com, stf, stf_later))
             else:
@@ -304,13 +305,11 @@ def inst_sto_tuples(m):
             index_helper = sorted_stf.index(stf_later)
             if stf_later == max(m.stf):
                 if (stf_later +
-                   m.global_prop.loc[(max(sorted_stf), 'Weight'), 'value'] - 1
-                   < min(m.stf) + m.storage.loc[(stf, sit, sto, com),
-                                                'lifetime']):
+                   m.global_prop_dict['value'][(max(sorted_stf), 'Weight')] - 1
+                   < min(m.stf) + m.storage_dict['lifetime'][(stf, sit, sto, com)]):
                     inst_sto.append((sit, sto, com, stf_later))
             elif (sorted_stf[index_helper+1] <=
-                  min(m.stf) + m.storage.loc[(stf, sit, sto, com),
-                                             'lifetime']):
+                  min(m.stf) + m.storage_dict['lifetime'][(stf, sit, sto, com)]):
                 inst_sto.append((sit, sto, com, stf_later))
 
     return inst_sto

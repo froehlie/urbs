@@ -74,29 +74,43 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         doc='Set of modelled timesteps')
 
     # support timeframes (e.g. 2020, 2030...)
+    indexlist = set()
+    for key in m.commodity_dict["price"]:
+        indexlist.add(tuple(key)[0])
     m.stf = pyomo.Set(
-        initialize=(m.commodity.index.get_level_values('support_timeframe')
-                    .unique()),
-    doc='Set of modeled support timeframes (e.g. years)')
+        initialize= indexlist,
+        doc='Set of modeled support timeframes (e.g. years)')
 
     # site (e.g. north, middle, south...)
+    indexlist = set()
+    for key in m.commodity_dict["price"]:
+        indexlist.add(tuple(key)[1])
     m.sit = pyomo.Set(
-        initialize=m.commodity.index.get_level_values('Site').unique(),
+        initialize=indexlist,
         doc='Set of sites')
 
     # commodity (e.g. solar, wind, coal...)
+    indexlist = set()
+    for key in m.commodity_dict["price"]:
+        indexlist.add(tuple(key)[2])
     m.com = pyomo.Set(
-        initialize=m.commodity.index.get_level_values('Commodity').unique(),
+        initialize=indexlist,
         doc='Set of commodities')
 
     # commodity type (i.e. SupIm, Demand, Stock, Env)
+    indexlist = set()
+    for key in m.commodity_dict["price"]:
+        indexlist.add(tuple(key)[3])
     m.com_type = pyomo.Set(
-        initialize=m.commodity.index.get_level_values('Type').unique(),
+        initialize=indexlist,
         doc='Set of commodity types')
 
     # process (e.g. Wind turbine, Gas plant, Photovoltaics...)
+    indexlist = set()
+    for key in m.process_dict["inv-cost"]:
+        indexlist.add(tuple(key)[2])
     m.pro = pyomo.Set(
-        initialize=m.process.index.get_level_values('Process').unique(),
+        initialize=indexlist,
         doc='Set of conversion processes')
 
     # cost_type
@@ -105,20 +119,19 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
                     'Purchase', 'Environmental'],
         doc='Set of cost types (hard-coded)')
 
-# tuple sets
+    # tuple sets
     m.sit_tuples = pyomo.Set(
         within=m.stf*m.sit,
-        initialize=m.site.index,
-        doc='Combinations of support imeframes and sites')
+        initialize=tuple(m.site_dict["area"].keys()),
+        doc='Combinations of support timeframes and sites')
     m.com_tuples = pyomo.Set(
         within=m.stf*m.sit*m.com*m.com_type,
-        initialize=m.commodity.index,
-        doc='Combinations of defined commodities, e.g. (2020,Mid,Elec,Demand)')
+        initialize=tuple(m.commodity_dict["price"].keys()),
+        doc='Combinations of defined commodities, e.g. (2018,Mid,Elec,Demand)')
     m.pro_tuples = pyomo.Set(
         within=m.stf*m.sit*m.pro,
-        initialize=m.process.index,
-        doc='Combinations of possible processes, e.g. (2020,North,Coal plant)')
-    
+        initialize=tuple(m.process_dict["inv-cost"].keys()),
+        doc='Combinations of possible processes, e.g. (2018,North,Coal plant)')
     m.com_stock = pyomo.Set(
         within=m.com,
         initialize=commodity_subset(m.com_tuples, 'Stock'),
@@ -161,7 +174,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
     # process tuples for area rule
     m.pro_area_tuples = pyomo.Set(
         within=m.stf*m.sit*m.pro,
-        initialize=m.proc_area.index,
+        initialize=tuple(m.proc_area_dict.keys()),
         doc='Processes and Sites with area Restriction')
 
     # process input/output
@@ -169,7 +182,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         within=m.stf*m.sit*m.pro*m.com,
         initialize=[(stf, site, process, commodity)
                     for (stf, site, process) in m.pro_tuples
-                    for (s, pro, commodity) in m.r_in.index
+                    for (s, pro, commodity) in tuple(m.r_in_dict.keys())
                     if process == pro and s == stf],
         doc='Commodities consumed by process by site,'
             'e.g. (2020,Mid,PV,Solar)')
@@ -177,7 +190,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         within=m.stf*m.sit*m.pro*m.com,
         initialize=[(stf, site, process, commodity)
                     for (stf, site, process) in m.pro_tuples
-                    for (s, pro, commodity) in m.r_out.index
+                    for (s, pro, commodity) in tuple(m.r_out_dict.keys())
                     if process == pro and s == stf],
         doc='Commodities produced by process by site, e.g. (2020,Mid,PV,Elec)')
 
@@ -186,7 +199,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         within=m.stf*m.sit*m.pro,
         initialize=[(stf, sit, pro)
                     for (stf, sit, pro) in m.pro_tuples
-                    if m.process.loc[stf, sit, pro]['max-grad'] < 1.0 / dt],
+                    if m.process_dict['max-grad'][stf, sit, pro] < 1.0 / dt],
         doc='Processes with maximum gradient smaller than timestep length')
 
     # process tuples for partial feature
@@ -194,15 +207,16 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         within=m.stf*m.sit*m.pro,
         initialize=[(stf, site, process)
                     for (stf, site, process) in m.pro_tuples
-                    for (s, pro, _) in m.r_in_min_fraction.index
+                    for (s, pro, _) in tuple(m.r_in_min_fraction_dict.keys())
                     if process == pro and s == stf],
-    doc='Processes with partial input')
+        doc='Processes with partial input')
 
     m.pro_partial_input_tuples = pyomo.Set(
         within=m.stf*m.sit*m.pro*m.com,
         initialize=[(stf, site, process, commodity)
                     for (stf, site, process) in m.pro_partial_tuples
-                    for (s, pro, commodity) in m.r_in_min_fraction.index
+                    for (s, pro, commodity) in tuple(m.r_in_min_fraction_dict
+                                                  .keys())
                     if process == pro and s == stf],
         doc='Commodities with partial input ratio,'
             'e.g. (2020,Mid,Coal PP,Coal)')
@@ -211,7 +225,8 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         within=m.stf*m.sit*m.pro*m.com,
         initialize=[(stf, site, process, commodity)
                     for (stf, site, process) in m.pro_partial_tuples
-                    for (s, pro, commodity) in m.r_out_min_fraction.index
+                    for (s, pro, commodity) in tuple(m.r_out_min_fraction_dict
+                                                  .keys())
                     if process == pro and s == stf],
         doc='Commodities with partial input ratio, e.g. (Mid,Coal PP,CO2)')
         
@@ -252,6 +267,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         doc='Power flow out of process (MW) per timestep')
    
     # Add additional features
+    # called features are declared in distinct file in features folder
     if m.mode['tra']:
         m = add_transmission(m)
     if m.mode['sto']:
@@ -260,7 +276,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         m = add_dsm(m)
     if m.mode['bsp']:
         m = add_buy_sell_price(m)
-    if m.mode['eff']:
+    if m.mode['tve']:
         m = add_time_variable_efficiency(m)
 
     # Equation declarations
@@ -304,7 +320,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         m.tm, m.pro_input_tuples - m.pro_partial_input_tuples,
         rule=def_process_input_rule,
         doc='process input = process throughput * input ratio')
-    if m.mode['eff']:
+    if m.mode['tve']:
         m.def_process_output = pyomo.Constraint(
             m.tm, (m.pro_output_tuples - m.pro_partial_output_tuples -
                 m.pro_timevar_output_tuples),
@@ -315,7 +331,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
             m.tm, (m.pro_output_tuples - m.pro_partial_output_tuples),
             rule=def_process_output_rule,
             doc='process output = process throughput * output ratio')
-
     m.def_intermittent_supply = pyomo.Constraint(
         m.tm, m.pro_input_tuples,
         rule=def_intermittent_supply_rule,
@@ -352,7 +367,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         doc='e_pro_in = '
             ' cap_pro * min_fraction * (r - R) / (1 - min_fraction)'
             ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')
-    if m.mode['eff']:
+    if m.mode['tve']:
         m.def_partial_process_output = pyomo.Constraint(
             m.tm, (m.pro_partial_output_tuples -
                 (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
@@ -366,8 +381,13 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
             rule=def_partial_process_output_rule,
             doc='e_pro_out = '
                 ' cap_pro * min_fraction * (r - R) / (1 - min_fraction)'
-                ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')
-
+                ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')        
+    
+    if m.mode['int']:
+        m.res_global_co2_limit = pyomo.Constraint(
+            m.stf,
+            rule=res_global_co2_limit_rule,
+            doc='total co2 commodity output <= global.prop CO2 limit')
 
     # costs
     m.def_costs = pyomo.Constraint(
@@ -377,11 +397,16 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
 
     # objective and global constraints
     if m.obj.value == 'cost':
-        
+
         if m.mode['int']:
             m.res_global_co2_budget = pyomo.Constraint(
                 rule=res_global_co2_budget_rule,
-                doc='total co2 commodity output <= global.prop CO2 budget')
+                doc='total co2 commodity output <= global.prop CO2 budget')           
+        else: 
+            m.res_global_co2_limit = pyomo.Constraint(
+                m.stf,
+                rule=res_global_co2_limit_rule,
+                doc='total co2 commodity output <= Global CO2 limit')
 
         m.objective_function = pyomo.Objective(
             rule=cost_rule,
@@ -404,11 +429,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         raise NotImplementedError("Non-implemented objective quantity. Set "
                                   "either 'cost' or 'CO2' as the objective in "
                                   "runme.py!")
-
-    m.res_global_co2_limit = pyomo.Constraint(
-        m.stf,
-        rule=res_global_co2_limit_rule,
-        doc='total co2 commodity output <= global.prop CO2 limit')
 
     if dual:
         m.dual = pyomo.Suffix(direction=pyomo.Suffix.IMPORT)
@@ -592,9 +612,9 @@ def res_throughput_by_capacity_min_rule(m, tm, stf, sit, pro):
 
 def def_partial_process_input_rule(m, tm, stf, sit, pro, coin):
     # input ratio at maximum operation point
-    R = m.r_in.loc[stf, pro, coin]
+    R = m.r_in_dict[(stf, pro, coin)]
     # input ratio at lowest operation point
-    r = m.r_in_min_fraction[stf, pro, coin]
+    r = m.r_in_min_fraction_dict[stf, pro, coin]
     min_fraction = m.process_dict['min-fraction'][(stf, sit, pro)]
 
     online_factor = min_fraction * (r - R) / (1 - min_fraction)
@@ -607,9 +627,9 @@ def def_partial_process_input_rule(m, tm, stf, sit, pro, coin):
 
 def def_partial_process_output_rule(m, tm, stf, sit, pro, coo):
     # input ratio at maximum operation point
-    R = m.r_out.loc[stf, pro, coo]
+    R = m.r_out_dict[stf, pro, coo]
     # input ratio at lowest operation point
-    r = m.r_out_min_fraction[stf, pro, coo]
+    r = m.r_out_min_fraction_dict[stf, pro, coo]
     min_fraction = m.process_dict['min-fraction'][(stf, sit, pro)]
 
     online_factor = min_fraction * (r - R) / (1 - min_fraction)
@@ -629,15 +649,15 @@ def res_process_capacity_rule(m, stf, sit, pro):
 
 # used process area <= maximal process area
 def res_area_rule(m, stf, sit):
-    if m.site.loc[stf, sit]['area'] >= 0 and sum(
-                         m.process.loc[(st, s, p), 'area-per-cap']
+    if m.site_dict['area'][stf, sit] >= 0 and sum(
+                          m.process_dict['area-per-cap'][st, s, p]
                          for (st, s, p) in m.pro_area_tuples
                          if s == sit and st == stf) > 0:
         total_area = sum(m.cap_pro[st, s, p] *
-                         m.process.loc[(st, s, p), 'area-per-cap']
+                         m.process_dict['area-per-cap'][st, s, p]
                          for (st, s, p) in m.pro_area_tuples
                          if s == sit and st == stf)
-        return total_area <= m.site.loc[stf, sit]['area']
+        return total_area <= m.site_dict['area'][stf, sit]
     else:
         # Skip constraint, if area is not numeric
         return pyomo.Constraint.Skip
@@ -645,9 +665,9 @@ def res_area_rule(m, stf, sit):
             
 # total CO2 output <= Global CO2 limit
 def res_global_co2_limit_rule(m, stf):
-    if math.isinf(m.global_prop.loc[stf, 'CO2 limit']['value']):
+    if math.isinf(m.global_prop_dict['value'][stf, 'CO2 limit']):
         return pyomo.Constraint.Skip
-    elif m.global_prop.loc[stf, 'CO2 limit']['value'] >= 0:
+    elif m.global_prop_dict['value'][stf, 'CO2 limit'] >= 0:
         co2_output_sum = 0
         for tm in m.tm:
             for sit in m.sit:
@@ -658,18 +678,16 @@ def res_global_co2_limit_rule(m, stf):
 
         # scaling to annual output (cf. definition of m.weight)
         co2_output_sum *= m.weight
-        return (co2_output_sum <= m.global_prop.loc[stf, 'CO2 limit']['value'])
+        return (co2_output_sum <= m.global_prop_dict['value'][stf, 'CO2 limit'])
     else:
         return pyomo.Constraint.Skip
 
 
 # CO2 output in entire period <= Global CO2 budget
 def res_global_co2_budget_rule(m):
-    if math.isinf(m.global_prop.loc[m.global_prop.index.min()[0], 'CO2 budget']
-                                   ['value']):
+    if math.isinf(m.global_prop_dict['value'][min(m.stf_list), 'CO2 budget']):
         return pyomo.Constraint.Skip
-    elif (m.global_prop.loc[m.global_prop.index.min()[0], 'CO2 budget']
-          ['value']) >= 0:
+    elif (m.global_prop_dict['value'][min(m.stf_list), 'CO2 budget']) >= 0:
         co2_output_sum = 0
         for stf in m.stf:
             for tm in m.tm:
@@ -682,12 +700,22 @@ def res_global_co2_budget_rule(m):
                                        stf_dist(stf, m))
 
         return (co2_output_sum <=
-                m.global_prop.loc[m.stf, 'CO2 budget']['value'])
+                m.global_prop_dict['value'][m.stf, 'CO2 budget'])
     else:
         return pyomo.Constraint.Skip
 
 
-# Objective
+def res_global_cost_limit_rule(m):
+    if math.isinf(m.global_prop_dict["value"][min(m.stf), "Cost limit"]):
+        return pyomo.Constraint.Skip
+    elif m.global_prop_dict["value"][min(m.stf), "Cost limit"] >= 0:
+        return(pyomo.summation(m.costs) <= m.global_prop_dict["value"]
+               [min(m.stf), "Cost limit"])
+    else:
+        return pyomo.Constraint.Skip
+
+
+# Costs and emissions
 def def_costs_rule(m, cost_type):
     """Calculate total costs by cost type.
     Sums up process activity and capacity expansions
@@ -870,13 +898,3 @@ def co2_rule(m):
 
     return (co2_output_sum)
 
-
-def res_global_cost_limit_rule(m):
-    if math.isinf(m.global_prop.loc[(min(m.stf), 'Cost budget'), 'value']):
-        return pyomo.Constraint.Skip
-    elif m.global_prop.loc[(min(m.stf), 'Cost budget'), 'value'] >= 0:
-        return(pyomo.summation(m.costs) <= m.global_prop.
-                                           loc[(min(m.stf), 'Cost budget'),
-                                               'value'])
-    else:
-        return pyomo.Constraint.Skip

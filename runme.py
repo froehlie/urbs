@@ -7,11 +7,9 @@ from datetime import datetime
 from pyomo.opt.base import SolverFactory
 
 
-
-
 if __name__ == '__main__':
     input_file = 'Input'
-    result_name = 'Intertemporal'
+    result_name = 'Mimo-ex'
     # problem without Input folder
     # result_name = os.path.splitext(input_file)[0]  # cut away file extension
     result_dir = urbs.prepare_result_directory(result_name)  # name + time stamp
@@ -155,6 +153,11 @@ if __name__ == '__main__':
         # urbs.scenario_all_together
         ]
     
+    # create timelog
+    timelog = open(os.path.join(result_dir, "timelog.txt"), "a")
+    timelog.write("Total\tread\tmodel\tsolve\tplot\r\n")
+    timelog.close()
+
     # create timelog
     timelog = open(os.path.join(result_dir, "timelog.txt"), "a")
     timelog.write("Total\tread\tmodel\tsolve\tplot\r\n")

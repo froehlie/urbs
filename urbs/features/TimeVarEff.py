@@ -2,13 +2,14 @@ import math
 import pyomo.core as pyomo
 
 def add_time_variable_efficiency(m):
+
     # process tuples for time variable efficiency
     m.pro_timevar_output_tuples = pyomo.Set(
         within=m.stf*m.sit*m.pro*m.com,
         initialize=[(stf, site, process, commodity)
-                    for stf in m.eff_factor.index.levels[0]
-                    for (site, process) in m.eff_factor.columns
-                    for (st, pro, commodity) in m.r_out.index
+                    for stf in m.stf_list
+                    for (site, process) in tuple(m.eff_factor_dict.keys())
+                    for (st, pro, commodity) in tuple(m.r_out_dict.keys())
                     if process == pro and st == stf and commodity not in
                     m.com_env],
     doc='Outputs of processes with time dependent efficiency')
@@ -39,9 +40,9 @@ def def_pro_timevar_output_rule(m, tm, stf, sit, pro, com):
 
 def def_pro_partial_timevar_output_rule(m, tm, stf, sit, pro, coo):
     # input ratio at maximum operation point
-    R = m.r_out.loc[stf, pro, coo]
+    R = m.r_out_dict[stf, pro, coo]
     # input ratio at lowest operation point
-    r = m.r_out_min_fraction[stf, pro, coo]
+    r = m.r_out_min_fraction_dict[stf, pro, coo]
     min_fraction = m.process_dict['min-fraction'][(stf, sit, pro)]
 
     online_factor = min_fraction * (r - R) / (1 - min_fraction)

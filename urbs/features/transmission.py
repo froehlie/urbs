@@ -5,14 +5,17 @@ import pyomo.core as pyomo
 def add_transmission(m):
 
     # tranmission (e.g. hvac, hvdc, pipeline...)
+    indexlist = set()
+    for key in m.transmission_dict["eff"]:
+        indexlist.add(tuple(key)[3])
     m.tra = pyomo.Set(
-        initialize=m.transmission.index.get_level_values('Transmission')
-                                    .unique(),
+        initialize=indexlist,
         doc='Set of transmission technologies')
+
     # transmission tuples
     m.tra_tuples = pyomo.Set(
         within=m.stf*m.sit*m.sit*m.tra*m.com,
-        initialize=m.transmission.index,
+        initialize=tuple(m.transmission_dict["eff"].keys()),
         doc='Combinations of possible transmissions, e.g. '
             '(2020,South,Mid,hvac,Elec)')
 
@@ -168,13 +171,11 @@ def op_tra_tuples(tra_tuple, m):
             index_helper = sorted_stf.index(stf_later)
             if stf_later == max(sorted_stf):
                 if (stf_later +
-                   m.global_prop.loc[(max(sorted_stf), 'Weight'), 'value'] - 1
-                   <= stf + m.transmission.loc[(stf, sit1, sit2, tra, com),
-                                               'depreciation']):
+                   m.global_prop_dict['value'][(max(sorted_stf), 'Weight')] - 1
+                   <= stf + m.transmission_dict['depreciation'][(stf, sit1, sit2, tra, com)]):
                     op_tra.append((sit1, sit2, tra, com, stf, stf_later))
             elif (sorted_stf[index_helper+1] <=
-                  stf + m.transmission.loc[(stf, sit1, sit2, tra, com),
-                                           'depreciation'] and
+                  stf + m.transmission_dict['depreciation'][(stf, sit1, sit2, tra, com)] and
                   stf <= stf_later):
                 op_tra.append((sit1, sit2, tra, com, stf, stf_later))
             else:
@@ -194,14 +195,12 @@ def inst_tra_tuples(m):
             index_helper = sorted_stf.index(stf_later)
             if stf_later == max(m.stf):
                 if (stf_later +
-                   m.global_prop.loc[(max(sorted_stf), 'Weight'), 'value'] - 1
+                   m.global_prop_dict['value'][(max(sorted_stf), 'Weight')] - 1
                    < min(m.stf) +
-                   m.transmission.loc[(stf, sit1, sit2, tra, com),
-                                      'lifetime']):
+                   m.transmission_dict['lifetime'][(stf, sit1, sit2, tra, com)]):
                     inst_tra.append((sit1, sit2, tra, com, stf_later))
             elif (sorted_stf[index_helper+1] <=
-                  min(m.stf) + m.transmission.loc[(stf, sit1, sit2, tra, com),
-                                                  'lifetime']):
+                  min(m.stf) + m.transmission_dict['lifetime'][(stf, sit1, sit2, tra, com)]):
                 inst_tra.append((sit1, sit2, tra, com, stf_later))
 
     return inst_tra

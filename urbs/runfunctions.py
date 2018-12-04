@@ -38,13 +38,15 @@ def setup_solver(optim, logfile='solver.log'):
         optim.set_options("log={}".format(logfile))
         # optim.set_options("tmlim=7200")  # seconds
         # optim.set_options("mipgap=.0005")
+    elif optim.name == 'cplex':
+        optim.set_options("log={}".format(logfile))
     else:
         print("Warning from setup_solver: no options set for solver "
               "'{}'!".format(optim.name))
     return optim
 
 
-def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt, objective, 
+def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt, objective,
                  plot_tuples=None,  plot_sites_name=None, plot_periods=None,
                  report_tuples=None, report_sites_name=None):
     """ run an urbs model for given input, time steps and scenario
@@ -99,18 +101,20 @@ def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt, objec
     result = optim.solve(prob, tee=True)
     assert str(result.solver.termination_condition) == 'optimal'
 
-    # t_solve = time.time() - t
-    # print("Time to solve model: %.2f sec" % t_solve)
+    # measure time to solve 
+    t_solve = time.time() - t
+    print("Time to solve model: %.2f sec" % t_solve)
 
-    # t = time.time()
+    t = time.time()
 
     # save problem solution (and input data) to HDF5 file
     save(prob, os.path.join(result_dir, '{}.h5'.format(sce)))
 
-    save_time = time.time() - t
-    print("Time to save solution in HDF5 file: %.2f sec" % save_time)
+    # # measure time to save solution
+    # save_time = time.time() - t
+    # print("Time to save solution in HDF5 file: %.2f sec" % save_time)
 
-    t = time.time()
+    # t = time.time()
 
     # write report to spreadsheet
     report(
