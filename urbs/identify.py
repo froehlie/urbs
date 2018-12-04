@@ -2,24 +2,23 @@ import pandas as pd
 
 
 def identify_mode(filename):
-    """ Identify the urbs mode that is needed for running the current xslx file
-    
-    Minimum mode: only one site, no transmission, no storage, no DSM, no expansion
-    optional features:
-    Intertemporal
-    Transmission
-    Storage
-    DSM
-    Buy Sell (Price)
-    Time Variable efficiency
-    
-    
+    """ Identify the urbs mode that is needed for running the current Input
+
+        The different modes/features are:
+            Intertemporal
+            Transmission
+            Storage
+            DSM
+            Buy Sell (Price)
+            Time Variable efficiency
+
     Args:
         the input excel file, in case of intertemporal planning the first excel
         file in the Input folder
-    
+
     Returns:
         mode dictionary: contain bool values that define the urbs mode
+
     """
 
     # create modes
@@ -39,24 +38,25 @@ def identify_mode(filename):
             mode['int'] = True
         # Transmission mode
         if 'Transmission' in xls.sheet_names \
-            and not xls.parse('Transmission').set_index(['Site In', 
-                            'Site Out', 'Transmission', 'Commodity']).empty:
+            and not xls.parse('Transmission').set_index(
+                ['Site In', 'Site Out', 'Transmission', 'Commodity']).empty:
             mode['tra'] = True
         # Storage mode
         if 'Storage' in xls.sheet_names \
-            and not xls.parse('Storage').set_index(['Site', 'Storage', 
-                                                'Commodity']).empty:
+            and not xls.parse('Storage').set_index(
+                ['Site', 'Storage', 'Commodity']).empty:
             mode['sto'] = True
         # Demand side management mode
         if 'DSM' in xls.sheet_names \
-            and not xls.parse('DSM').set_index(['Site', 'Commodity']).empty:
+                and not xls.parse('DSM').set_index(
+                ['Site', 'Commodity']).empty:
             mode['dsm'] = True
         # Buy sell price mode
         if 'Buy-Sell-Price' in xls.sheet_names \
-            and not xls.parse('Buy-Sell-Price').set_index(['t']).empty:
-            mode['bsp'] = True 
+                and not xls.parse('Buy-Sell-Price').set_index(['t']).empty:
+            mode['bsp'] = True
         if 'TimeVarEff' in xls.sheet_names \
-            and not xls.parse('TimeVarEff').set_index(['t']).empty:
-            mode['tve'] = True  
+                and not xls.parse('TimeVarEff').set_index(['t']).empty:
+            mode['tve'] = True
 
     return mode

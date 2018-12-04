@@ -46,9 +46,10 @@ def setup_solver(optim, logfile='solver.log'):
     return optim
 
 
-def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt, objective,
-                 plot_tuples=None,  plot_sites_name=None, plot_periods=None,
-                 report_tuples=None, report_sites_name=None):
+def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt,
+                 objective, plot_tuples=None,  plot_sites_name=None,
+                 plot_periods=None, report_tuples=None,
+                 report_sites_name=None):
     """ run an urbs model for given input, time steps and scenario
 
     Args:
@@ -66,7 +67,7 @@ def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt, objec
     Returns:
         the urbs model instance
     """
-    
+
     # start time measurement
     t_start = time.time()
 
@@ -83,7 +84,7 @@ def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt, objec
     t = time.time()
     # create model
     prob = create_model(data, mode, dt, timesteps, objective)
-    prob.write('model.lp', io_options={'symbolic_solver_labels':True})
+    prob.write('model.lp', io_options={'symbolic_solver_labels': True})
 
     # measure time to create model
     t_model = time.time() - t
@@ -101,7 +102,7 @@ def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt, objec
     result = optim.solve(prob, tee=True)
     assert str(result.solver.termination_condition) == 'optimal'
 
-    # measure time to solve 
+    # measure time to solve
     t_solve = time.time() - t
     print("Time to solve model: %.2f sec" % t_solve)
 

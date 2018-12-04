@@ -7,6 +7,7 @@ from datetime import date
 from .features.modelhelper import *
 from .identify import identify_mode
 
+
 def read_input(input_files):
     """Read Excel input file and prepare URBS input dict.
 
@@ -47,11 +48,11 @@ def read_input(input_files):
     sup = []
     bsp = []
     ds = []
-    ef = [] 
+    ef = []
 
     # get mode
-    mode = identify_mode(input_files[0])  
-    print ("mode: ",mode) 
+    mode = identify_mode(input_files[0])
+    print("Activated features: ", mode)
 
     for filename in input_files:
         # identify mode of input_file
@@ -60,14 +61,13 @@ def read_input(input_files):
             global_prop = xls.parse('Global').set_index(['Property'])
             # create support timeframe index
             if mode['int']:
-                support_timeframe = ( 
+                support_timeframe = (
                     global_prop.loc['Support timeframe']['value'])
                 global_prop = (
                     global_prop.drop(['Support timeframe'])
                     .drop(['description'], axis=1))
             else:
                 support_timeframe = date.today().year
-            print(support_timeframe)
             global_prop = pd.concat([global_prop], keys=[support_timeframe],
                                     names=['support_timeframe'])
             gl.append(global_prop)
@@ -101,7 +101,7 @@ def read_input(input_files):
                               names=['support_timeframe'])
             sup.append(supim)
 
-            # collect data for the additional features 
+            # collect data for the additional features
             # Transmission, Storage, DSM
             if mode['tra']:
                 transmission = (
@@ -109,8 +109,8 @@ def read_input(input_files):
                     .set_index(['Site In', 'Site Out',
                                 'Transmission', 'Commodity']))
                 transmission = (
-                pd.concat([transmission], keys=[support_timeframe],
-                            names=['support_timeframe']))
+                    pd.concat([transmission], keys=[support_timeframe],
+                              names=['support_timeframe']))
                 tra.append(transmission)
             if mode['sto']:
                 storage = (
@@ -118,7 +118,7 @@ def read_input(input_files):
                     .set_index(['Site', 'Storage', 'Commodity']))
                 storage = pd.concat([storage], keys=[support_timeframe],
                                     names=['support_timeframe'])
-                sto.append(storage)  
+                sto.append(storage)
             if mode['dsm']:
                 dsm = xls.parse('DSM').set_index(['Site', 'Commodity'])
                 dsm = pd.concat([dsm], keys=[support_timeframe],
@@ -127,8 +127,8 @@ def read_input(input_files):
             if mode['bsp']:
                 buy_sell_price = xls.parse('Buy-Sell-Price').set_index(['t'])
                 buy_sell_price = pd.concat([buy_sell_price],
-                                        keys=[support_timeframe],
-                                        names=['support_timeframe'])
+                                           keys=[support_timeframe],
+                                           names=['support_timeframe'])
                 bsp.append(buy_sell_price)
             if mode['tve']:
                 eff_factor = (xls.parse('TimeVarEff').set_index(['t']))
@@ -149,7 +149,7 @@ def read_input(input_files):
         site = pd.concat(sit)
         commodity = pd.concat(com)
         process = pd.concat(pro)
-        process_commodity = pd.concat(pro_com)  
+        process_commodity = pd.concat(pro_com)
         demand = pd.concat(dem)
         supim = pd.concat(sup)
         if mode['tra']:
@@ -162,7 +162,6 @@ def read_input(input_files):
             buy_sell_price = pd.concat(bsp)
         if mode['tve']:
             eff_factor = pd.concat(ef)
-
 
     data = {
         'global_prop': global_prop,
@@ -184,7 +183,7 @@ def read_input(input_files):
     if mode['bsp']:
         data['buy_sell_price'] = buy_sell_price
     if mode['tve']:
-        data['eff_factor'] = eff_factor       
+        data['eff_factor'] = eff_factor
 
     # sort nested indexes to make direct assignments work
     for key in data:
@@ -204,7 +203,6 @@ def pyomo_model_prep(data, mode, timesteps):
     #
     #     storage.loc[site, storage, commodity][attribute]
     #
-
 
     m.mode = mode
     m.timesteps = timesteps
@@ -228,21 +226,21 @@ def pyomo_model_prep(data, mode, timesteps):
         m.dsm_dict = data["dsm"].to_dict()
     if m.mode['bsp']:
         m.buy_sell_price_dict = data["buy_sell_price"].to_dict()
-    if m.mode['tve']: 
+    if m.mode['tve']:
         m.eff_factor_dict = data["eff_factor"].to_dict()
 
     # Create columns of support timeframe values
     commodity['support_timeframe'] = (commodity.index.
-                                        get_level_values('support_timeframe'))
+                                      get_level_values('support_timeframe'))
     process['support_timeframe'] = (process.index.
                                     get_level_values('support_timeframe'))
     if m.mode['tra']:
         transmission['support_timeframe'] = (transmission.index.
-                                        get_level_values
-                                        ('support_timeframe'))
+                                             get_level_values
+                                             ('support_timeframe'))
     if m.mode['sto']:
         storage['support_timeframe'] = (storage.index.
-                                    get_level_values('support_timeframe'))
+                                        get_level_values('support_timeframe'))
 
     # installed units for intertemporal planning
     if m.mode['int']:
@@ -287,7 +285,8 @@ def pyomo_model_prep(data, mode, timesteps):
     # storages with fixed initial state
     if m.mode['sto']:
         stor_init_bound = storage['init']
-        m.stor_init_bound_dict = stor_init_bound[stor_init_bound >= 0].to_dict()
+        m.stor_init_bound_dict = \
+            stor_init_bound[stor_init_bound >= 0].to_dict()
 
         try:
             # storages with fixed energy-to-power ratio
@@ -296,7 +295,6 @@ def pyomo_model_prep(data, mode, timesteps):
         except KeyError:
             m.sto_ep_ratio_dict = {}
 
-    
     # derive invcost factor from WACC and depreciation duration
     if m.mode['int']:
         # derive invest factor from WACC, depreciation and discount untility
@@ -304,50 +302,52 @@ def pyomo_model_prep(data, mode, timesteps):
                                 .loc[m.global_prop.index.min()[0]]['value'])
         process['stf_min'] = m.global_prop.index.min()[0]
         process['stf_end'] = (m.global_prop.index.max()[0] +
-                                m.global_prop.loc[(max(commodity.
-                                                index.get_level_values
-                                                ('support_timeframe').unique()),
-                                                'Weight')]['value'] - 1)
-        process['invcost-factor'] = (process.apply(lambda x:
-                                    invcost_factor(x['depreciation'],
-                                                    x['wacc'],
-                                                    x['discount'],
-                                                    x['support_timeframe'],
-                                                    x['stf_min']),
-                                    axis=1))
+                              m.global_prop.loc[
+                              (max(commodity.index.get_level_values
+                                   ('support_timeframe').unique()),
+                               'Weight')]['value'] - 1)
+        process['invcost-factor'] = (process.apply(
+                                     lambda x: invcost_factor(
+                                      x['depreciation'],
+                                      x['wacc'],
+                                      x['discount'],
+                                      x['support_timeframe'],
+                                      x['stf_min']),
+                                     axis=1))
 
         # derive overpay-factor from WACC, depreciation and discount untility
-        process['overpay-factor'] = (process.apply(lambda x:
-                                    overpay_factor(x['depreciation'],
-                                                    x['wacc'],
-                                                    x['discount'],
-                                                    x['support_timeframe'],
-                                                    x['stf_min'],
-                                                    x['stf_end']),
-                                    axis=1))
+        process['overpay-factor'] = (process.apply(
+                                     lambda x: overpay_factor(
+                                                x['depreciation'],
+                                                x['wacc'],
+                                                x['discount'],
+                                                x['support_timeframe'],
+                                                x['stf_min'],
+                                                x['stf_end']),
+                                     axis=1))
         process.loc[(process['overpay-factor'] < 0) |
                     (process['overpay-factor']
                      .isnull()), 'overpay-factor'] = 0
 
         # Derive multiplier for all energy based costs
         commodity['stf_dist'] = (commodity['support_timeframe'].
-                                apply(stf_dist, m=m))
+                                 apply(stf_dist, m=m))
         commodity['discount-factor'] = (commodity['support_timeframe'].
                                         apply(discount_factor, m=m))
         commodity['eff-distance'] = (commodity['stf_dist'].
-                                    apply(effective_distance, m=m))
+                                     apply(effective_distance, m=m))
         commodity['cost_factor'] = (commodity['discount-factor'] *
-                                        commodity['eff-distance'])
-        process['stf_dist'] = (process['support_timeframe']
-                                .apply(stf_dist, m=m))
+                                    commodity['eff-distance'])
+        process['stf_dist'] = (process['support_timeframe'].
+                               apply(stf_dist, m=m))
         process['discount-factor'] = (process['support_timeframe'].
-                                        apply(discount_factor, m=m))
+                                      apply(discount_factor, m=m))
         process['eff-distance'] = (process['stf_dist'].
-                                    apply(effective_distance, m=m))
+                                   apply(effective_distance, m=m))
         process['cost_factor'] = (process['discount-factor'] *
-                                        process['eff-distance'])
+                                  process['eff-distance'])
 
-
+        # Additional features
         # transmission mode
         if m.mode['tra']:
             transmission['discount'] = (
@@ -355,34 +355,31 @@ def pyomo_model_prep(data, mode, timesteps):
                 .loc[m.global_prop.index.min()[0]]['value'])
             transmission['stf_min'] = m.global_prop.index.min()[0]
             transmission['stf_end'] = (m.global_prop.index.max()[0] +
-                                        m.global_prop.loc[(max(commodity.
-                                                        index.get_level_values
-                                                        ('support_timeframe').
-                                                        unique()), 'Weight')]
-                                                        ['value'] - 1)            
+                                       m.global_prop.loc[
+                                       (max(commodity.index.get_level_values
+                                            ('support_timeframe').unique()),
+                                        'Weight')]['value'] - 1)
             transmission['invcost-factor'] = (
-                transmission.apply(lambda x:
-                                        invcost_factor(
-                                        x['depreciation'],
-                                        x['wacc'],
-                                        x['discount'],
-                                        x['support_timeframe'],
-                                        x['stf_min']),
-                                        axis=1))
+                transmission.apply(lambda x: invcost_factor(
+                                              x['depreciation'],
+                                              x['wacc'],
+                                              x['discount'],
+                                              x['support_timeframe'],
+                                              x['stf_min']),
+                                   axis=1))
             transmission['overpay-factor'] = (
-                transmission.apply(lambda x:
-                                        overpay_factor(
-                                        x['depreciation'],
-                                        x['wacc'],
-                                        x['discount'],
-                                        x['support_timeframe'],
-                                        x['stf_min'],
-                                        x['stf_end']),
-                                        axis=1))
+                transmission.apply(lambda x: overpay_factor(
+                                              x['depreciation'],
+                                              x['wacc'],
+                                              x['discount'],
+                                              x['support_timeframe'],
+                                              x['stf_min'],
+                                              x['stf_end']),
+                                   axis=1))
 
             transmission.loc[(transmission['overpay-factor'] < 0) |
-                                (transmission['overpay-factor'].isnull()),
-                                'overpay-factor'] = 0
+                             (transmission['overpay-factor'].isnull()),
+                             'overpay-factor'] = 0
             transmission['stf_dist'] = (transmission['support_timeframe'].
                                         apply(stf_dist, m=m))
             transmission['discount-factor'] = (
@@ -390,34 +387,33 @@ def pyomo_model_prep(data, mode, timesteps):
             transmission['eff-distance'] = (transmission['stf_dist'].
                                             apply(effective_distance, m=m))
             transmission['cost_factor'] = (transmission['discount-factor'] *
-                                            transmission['eff-distance'])
+                                           transmission['eff-distance'])
         # storage mode
         if m.mode['sto']:
-            storage['discount'] = (m.global_prop.xs('Discount rate', level=1)
-                                    .loc[m.global_prop.index.min()[0]]['value'])
+            storage['discount'] = m.global_prop.xs('Discount rate', level=1) \
+                                   .loc[m.global_prop.index.min()[0]]['value']
             storage['stf_min'] = m.global_prop.index.min()[0]
             storage['stf_end'] = (m.global_prop.index.max()[0] +
-                                    m.global_prop.loc[(max(commodity.
-                                                    index.get_level_values
-                                                    ('support_timeframe')
-                                                     .unique()),
-                                                     'Weight')]['value'] - 1)
+                                  m.global_prop.loc[
+                                  (max(commodity.index.get_level_values
+                                       ('support_timeframe').unique()),
+                                   'Weight')]['value'] - 1)
             storage['invcost-factor'] = (storage.apply(lambda x:
-                                        invcost_factor(x['depreciation'],
+                                         invcost_factor(x['depreciation'],
                                                         x['wacc'],
                                                         x['discount'],
                                                         x['support_timeframe'],
                                                         x['stf_min']),
-                                        axis=1))
+                                         axis=1))
             storage['overpay-factor'] = (
-                storage.apply(lambda x:
-                                overpay_factor(x['depreciation'],
-                                                x['wacc'],
-                                                x['discount'],
-                                                x['support_timeframe'],
-                                                x['stf_min'],
-                                                x['stf_end']),
-                                axis=1))
+                storage.apply(lambda x: overpay_factor(
+                                         x['depreciation'],
+                                         x['wacc'],
+                                         x['discount'],
+                                         x['support_timeframe'],
+                                         x['stf_min'],
+                                         x['stf_end']),
+                               axis=1))
 
             storage.loc[(storage['overpay-factor'] < 0) |
                         (storage['overpay-factor'].isnull()),
