@@ -23,7 +23,7 @@ if __name__ == '__main__':
     objective = 'cost' # set either 'cost' or 'CO2' as objective
 
     # Choose Solver (cplex, glpk, gurobi, ...)
-    Solver = 'cplex'
+    Solver = 'gurobi'
 
     # simulation timesteps
     (offset, length) = (3500, 168)  # time step selection
@@ -136,15 +136,15 @@ if __name__ == '__main__':
     # select scenarios to be run
     scenarios = [
         urbs.scenario_base,
-        urbs.scenario_base,
-        urbs.scenario_base,
-        urbs.scenario_base,
-        urbs.scenario_base,
-        urbs.scenario_base,
-        urbs.scenario_base,
-        urbs.scenario_base,
-        urbs.scenario_base,
-        urbs.scenario_base,
+        # urbs.scenario_base,
+        # urbs.scenario_base,
+        # urbs.scenario_base,
+        # urbs.scenario_base,
+        # urbs.scenario_base,
+        # urbs.scenario_base,
+        # urbs.scenario_base,
+        # urbs.scenario_base,
+        # urbs.scenario_base,
         # urbs.scenario_stock_prices,
         # urbs.scenario_co2_limit
         # urbs.scenario_co2_tax_mid,
@@ -152,11 +152,6 @@ if __name__ == '__main__':
         # urbs.scenario_north_process_caps,
         # urbs.scenario_all_together
         ]
-    
-    # create timelog
-    timelog = open(os.path.join(result_dir, "timelog.txt"), "a")
-    timelog.write("Total\tread\tmodel\tsolve\tplot\r\n")
-    timelog.close()
 
     # create timelog
     timelog = open(os.path.join(result_dir, "timelog.txt"), "a")

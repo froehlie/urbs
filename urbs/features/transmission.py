@@ -159,6 +159,31 @@ def transmission_balance(m, tm, stf, sit, com):
                         if site_out == sit and stframe == stf and
                         commodity == com))
 
+# transmission cost function
+def transmission_cost(m, cost_type):
+    """returns transmission cost function for the different cost types"""
+    if cost_type == 'Invest':
+        cost = sum(m.cap_tra_new[t] *
+                   m.transmission_dict['inv-cost'][t] *
+                   m.transmission_dict['invcost-factor'][t]
+                   for t in m.tra_tuples)
+        if m.mode['int']:
+            cost -= sum(m.cap_tra_new[t] *
+                        m.transmission_dict['inv-cost'][t] *
+                        m.transmission_dict['overpay-factor'][t]
+                        for t in m.tra_tuples)
+        return cost         
+    elif cost_type == 'Fixed':
+        return sum(m.cap_tra[t] * m.transmission_dict['fix-cost'][t] *
+                   m.transmission_dict['cost_factor'][t]
+                   for t in m.tra_tuples)
+    elif cost_type == 'Variable':
+        return sum(m.e_tra_in[(tm,) + t] * m.weight *
+                   m.transmission_dict['var-cost'][t] *
+                   m.transmission_dict['cost_factor'][t]
+                   for tm in m.tm
+                   for t in m.tra_tuples)
+
 
 def op_tra_tuples(tra_tuple, m):
     """ s.a. op_pro_tuples

@@ -19,6 +19,7 @@ def invcost_factor(dep_prd, interest, discount=None, year_built=None,
         else:
             return ((1+interest)**dep_prd * interest /
                     ((1+interest)**dep_prd - 1))
+    # invcost factor for intertemporal planning
     elif discount == 0:
         if interest == 0:
             return 1

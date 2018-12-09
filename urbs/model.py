@@ -1,9 +1,8 @@
 import math
 import pyomo.core as pyomo
 from datetime import datetime
-from .features.modelhelper import *
-from .input import *
 from .features import *
+from .input import *
 
 
 def create_model(data, mode, dt=1, timesteps=None, objective='cost',
@@ -736,42 +735,18 @@ def def_costs_rule(m, cost_type):
                 m.process_dict['inv-cost'][p] *
                 m.process_dict['invcost-factor'][p]
                 for p in m.pro_tuples)
-        if m.mode['tra']:
-            cost += \
-                sum(m.cap_tra_new[t] *
-                    m.transmission_dict['inv-cost'][t] *
-                    m.transmission_dict['invcost-factor'][t]
-                    for t in m.tra_tuples)
-        if m.mode['sto']:
-            cost += \
-                sum(m.cap_sto_p_new[s] *
-                    m.storage_dict['inv-cost-p'][s] *
-                    m.storage_dict['invcost-factor'][s] +
-                    m.cap_sto_c_new[s] *
-                    m.storage_dict['inv-cost-c'][s] *
-                    m.storage_dict['invcost-factor'][s]
-                    for s in m.sto_tuples)
         if m.mode['int']:
             cost -= \
                 sum(m.cap_pro_new[p] *
                     m.process_dict['inv-cost'][p] *
                     m.process_dict['overpay-factor'][p]
                     for p in m.pro_tuples)
-            if m.mode['tra']:
-                cost -= \
-                    sum(m.cap_tra_new[t] *
-                        m.transmission_dict['inv-cost'][t] *
-                        m.transmission_dict['overpay-factor'][t]
-                        for t in m.tra_tuples)
-            if m.mode['sto']:
-                cost -= \
-                    sum(m.cap_sto_p_new[s] *
-                        m.storage_dict['inv-cost-p'][s] *
-                        m.storage_dict['overpay-factor'][s] +
-                        m.cap_sto_c_new[s] *
-                        m.storage_dict['inv-cost-c'][s] *
-                        m.storage_dict['overpay-factor'][s]
-                        for s in m.sto_tuples)
+        if m.mode['tra']:
+            # transmission_cost is defined in transmission.py
+            cost += transmission_cost(m, cost_type)
+        if m.mode['sto']:
+            # storage_cost is defined in storage.py
+            cost += storage_cost(m, cost_type)
         return m.costs[cost_type] == cost
 
     elif cost_type == 'Fixed':
@@ -780,16 +755,9 @@ def def_costs_rule(m, cost_type):
                 m.process_dict['cost_factor'][p]
                 for p in m.pro_tuples)
         if m.mode['tra']:
-            cost += \
-                sum(m.cap_tra[t] * m.transmission_dict['fix-cost'][t] *
-                    m.transmission_dict['cost_factor'][t]
-                    for t in m.tra_tuples)
+            cost += transmission_cost(m, cost_type)
         if m.mode['sto']:
-            cost += \
-                sum((m.cap_sto_p[s] * m.storage_dict['fix-cost-p'][s] +
-                    m.cap_sto_c[s] * m.storage_dict['fix-cost-c'][s]) *
-                    m.storage_dict['cost_factor'][s]
-                    for s in m.sto_tuples)
+            cost += storage_cost(m, cost_type)
         return m.costs[cost_type] == cost
 
     elif cost_type == 'Variable':
@@ -800,22 +768,9 @@ def def_costs_rule(m, cost_type):
                 for tm in m.tm
                 for p in m.pro_tuples)
         if m.mode['tra']:
-            cost += \
-                sum(m.e_tra_in[(tm,) + t] * m.weight *
-                    m.transmission_dict['var-cost'][t] *
-                    m.transmission_dict['cost_factor'][t]
-                    for tm in m.tm
-                    for t in m.tra_tuples)
+            cost += transmission_cost(m, cost_type)
         if m.mode['sto']:
-            cost += \
-                sum(m.e_sto_con[(tm,) + s] * m.weight *
-                    m.storage_dict['var-cost-c'][s] *
-                    m.storage_dict['cost_factor'][s] +
-                    (m.e_sto_in[(tm,) + s] + m.e_sto_out[(tm,) + s]) *
-                    m.weight * m.storage_dict['var-cost-p'][s] *
-                    m.storage_dict['cost_factor'][s]
-                    for tm in m.tm
-                    for s in m.sto_tuples)
+            cost += storage_cost(m, cost_type)
         return m.costs[cost_type] == cost
 
     elif cost_type == 'Fuel':
