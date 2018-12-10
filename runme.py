@@ -23,10 +23,10 @@ shutil.copy(__file__, result_dir)
 objective = 'cost' # set either 'cost' or 'CO2' as objective
 
 # Choose Solver (cplex, glpk, gurobi, ...)
-Solver = 'cplex'
+Solver = 'glpk'
 
 # simulation timesteps
-(offset, length) = (3500, 5*168)  # time step selection
+(offset, length) = (3500, 168)  # time step selection
 timesteps = range(offset, offset+length+1)
 dt = 1  # length of each time step (unit: hours)
 
