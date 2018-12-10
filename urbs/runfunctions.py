@@ -8,7 +8,7 @@ from .report import *
 from .plot import *
 from .input import *
 from .validation import *
-from .saveload import save
+from .saveload import *
 
 
 def prepare_result_directory(result_name):
