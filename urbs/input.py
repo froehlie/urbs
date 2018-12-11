@@ -95,10 +95,14 @@ def read_input(input_files):
             demand = xls.parse('Demand').set_index(['t'])
             demand = pd.concat([demand], keys=[support_timeframe],
                                names=['support_timeframe'])
+            # split columns by dots '.', so that 'DE.Elec' becomes 
+            # the two-level column index ('DE', 'Elec')
+            demand.columns = split_columns(demand.columns, '.')
             dem.append(demand)
             supim = xls.parse('SupIm').set_index(['t'])
             supim = pd.concat([supim], keys=[support_timeframe],
                               names=['support_timeframe'])
+            supim.columns = split_columns(supim.columns, '.')
             sup.append(supim)
 
             # collect data for the additional features 
@@ -129,6 +133,8 @@ def read_input(input_files):
                 buy_sell_price = pd.concat([buy_sell_price],
                                         keys=[support_timeframe],
                                         names=['support_timeframe'])
+                buy_sell_price.columns = \
+                    split_columns(buy_sell_price.columns, '.')
                 bsp.append(buy_sell_price)
             if mode['tve']:
                 eff_factor = (xls.parse('TimeVarEff').set_index(['t']))
@@ -137,12 +143,7 @@ def read_input(input_files):
                 eff_factor.columns = split_columns(eff_factor.columns, '.')
                 ef.append(eff_factor)
 
-        # prepare input data
-        # split columns by dots '.', so that 'DE.Elec' becomes the two-level
-        # column index ('DE', 'Elec')
-        demand.columns = split_columns(demand.columns, '.')
-        supim.columns = split_columns(supim.columns, '.')
-        buy_sell_price.columns = split_columns(buy_sell_price.columns, '.')
+    # prepare input data
 
     if mode['int']:
         global_prop = pd.concat(gl)
