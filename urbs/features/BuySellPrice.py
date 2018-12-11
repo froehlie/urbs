@@ -2,7 +2,6 @@ import math
 import pyomo.core as pyomo
 from .modelhelper import commodity_subset
 
-
 def add_buy_sell_price(m):   
     
     # Sets
@@ -164,3 +163,41 @@ def bsp_surplus(m, tm, stf, sit, com, com_type):
         power_surplus += m.e_co_buy[tm, stf, sit, com, com_type]
     
     return power_surplus
+
+def revenue_costs(m):
+    sell_tuples = commodity_subset(m.com_tuples, m.com_sell)
+    try:
+        return -sum(
+            m.e_co_sell[(tm,) + c] *
+            m.buy_sell_price_dict[c[2]][(c[0], tm)] * m.weight *
+            m.commodity_dict['price'][c] *
+            m.commodity_dict['cost_factor'][c]
+            for tm in m.tm
+            for c in sell_tuples)
+    except KeyError:
+        return -sum(
+            m.e_co_sell[(tm,) + c] *
+            m.buy_sell_price_dict[c[2], ][(c[0], tm)] * m.weight *
+            m.commodity_dict['price'][c] *
+            m.commodity_dict['cost_factor'][c]
+            for tm in m.tm
+            for c in sell_tuples)
+
+def purchase_costs(m):
+    buy_tuples = commodity_subset(m.com_tuples, m.com_buy)
+    try:
+        return sum(
+            m.e_co_buy[(tm,) + c] *
+            m.buy_sell_price_dict[c[2]][(c[0], tm)] * m.weight *
+            m.commodity_dict['price'][c] *
+            m.commodity_dict['cost_factor'][c]
+            for tm in m.tm
+            for c in buy_tuples)
+    except KeyError:
+        return sum(
+            m.e_co_buy[(tm,) + c] *
+            m.buy_sell_price_dict[c[2], ][(c[0], tm)] * m.weight *
+            m.commodity_dict['price'][c] *
+            m.commodity_dict['cost_factor'][c]
+            for tm in m.tm
+            for c in buy_tuples)

@@ -113,8 +113,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective='cost',
 
     # cost_type
     m.cost_type = pyomo.Set(
-        initialize=['Invest', 'Fixed', 'Variable', 'Fuel', 'Revenue',
-                    'Purchase', 'Environmental'],
+        initialize= m.cost_type_list,
         doc='Set of cost types (hard-coded)')
 
     # tuple sets
@@ -781,44 +780,6 @@ def def_costs_rule(m, cost_type):
             for tm in m.tm for c in m.com_tuples
             if c[2] in m.com_stock)
 
-    elif cost_type == 'Revenue':
-        sell_tuples = commodity_subset(m.com_tuples, m.com_sell)
-        try:
-            return m.costs[cost_type] == -sum(
-                m.e_co_sell[(tm,) + c] *
-                m.buy_sell_price_dict[c[2]][(c[0], tm)] * m.weight *
-                m.commodity_dict['price'][c] *
-                m.commodity_dict['cost_factor'][c]
-                for tm in m.tm
-                for c in sell_tuples)
-        except KeyError:
-            return m.costs[cost_type] == -sum(
-                m.e_co_sell[(tm,) + c] *
-                m.buy_sell_price_dict[c[2], ][(c[0], tm)] * m.weight *
-                m.commodity_dict['price'][c] *
-                m.commodity_dict['cost_factor'][c]
-                for tm in m.tm
-                for c in sell_tuples)
-
-    elif cost_type == 'Purchase':
-        buy_tuples = commodity_subset(m.com_tuples, m.com_buy)
-        try:
-            return m.costs[cost_type] == sum(
-                m.e_co_buy[(tm,) + c] *
-                m.buy_sell_price_dict[c[2]][(c[0], tm)] * m.weight *
-                m.commodity_dict['price'][c] *
-                m.commodity_dict['cost_factor'][c]
-                for tm in m.tm
-                for c in buy_tuples)
-        except KeyError:
-            return m.costs[cost_type] == sum(
-                m.e_co_buy[(tm,) + c] *
-                m.buy_sell_price_dict[c[2], ][(c[0], tm)] * m.weight *
-                m.commodity_dict['price'][c] *
-                m.commodity_dict['cost_factor'][c]
-                for tm in m.tm
-                for c in buy_tuples)
-
     elif cost_type == 'Environmental':
         return m.costs[cost_type] == sum(
             - commodity_balance(m, tm, stf, sit, com) * m.weight *
@@ -827,6 +788,13 @@ def def_costs_rule(m, cost_type):
             for tm in m.tm
             for stf, sit, com, com_type in m.com_tuples
             if com in m.com_env)
+
+    # Revenue and Purchase costs defined in BuySellPrice.py
+    elif cost_type == 'Revenue':
+        return m.costs[cost_type] == revenue_costs(m)
+
+    elif cost_type == 'Purchase':
+        return m.costs[cost_type] == purchase_costs(m)
 
     else:
         raise NotImplementedError("Unknown cost type.")

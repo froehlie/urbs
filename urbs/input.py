@@ -210,13 +210,18 @@ def pyomo_model_prep(data, mode, timesteps):
     m.global_prop = data['global_prop']
     process = data['process']
     commodity = data['commodity']
+
     # create list with all support timeframe values
     m.stf_list = m.global_prop.index.levels[0].tolist()
+    # creating list wih cost types
+    m.cost_type_list = ['Invest', 'Fixed', 'Variable', 'Fuel', 'Environmental']
+    
     # Converting Data frames to dict
     # Data frames that need to be modified will be converted after modification
     m.site_dict = data['site'].to_dict()
     m.demand_dict = data['demand'].to_dict()
     m.supim_dict = data['supim'].to_dict()
+
 
     # additional features
     if m.mode['tra']:
@@ -227,6 +232,8 @@ def pyomo_model_prep(data, mode, timesteps):
         m.dsm_dict = data["dsm"].to_dict()
     if m.mode['bsp']:
         m.buy_sell_price_dict = data["buy_sell_price"].to_dict()
+        # adding Revenue and Pruchase to cost types
+        m.cost_type_list.extend(['Revenue', 'Purchase'])
     if m.mode['tve']:
         m.eff_factor_dict = data["eff_factor"].to_dict()
 
