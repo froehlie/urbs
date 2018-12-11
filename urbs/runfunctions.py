@@ -8,7 +8,7 @@ from .report import *
 from .plot import *
 from .input import *
 from .validation import *
-from .saveload import save
+from .saveload import *
 
 
 def prepare_result_directory(result_name):
@@ -84,7 +84,7 @@ def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt,
     t = time.time()
     # create model
     prob = create_model(data, mode, dt, timesteps, objective)
-    # prob.write('model.lp', io_options={'symbolic_solver_labels': True})
+    # prob.write('model.lp', io_options={'symbolic_solver_labels':True})
 
     # measure time to create model
     t_model = time.time() - t
