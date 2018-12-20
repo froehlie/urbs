@@ -241,14 +241,17 @@ def create_model(data, mode, dt=1, timesteps=None, objective='cost',
         doc='Use of stock commodity source (MW) per timestep')
 
     # process
-    m.cap_pro = pyomo.Var(
-        m.pro_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='Total process capacity (MW)')
+    # m.cap_pro = pyomo.Var(
+    #     m.pro_tuples,
+    #     within=pyomo.NonNegativeReals,
+    #     doc='Total process capacity (MW)')
     m.cap_pro_new = pyomo.Var(
         m.pro_tuples,
         within=pyomo.NonNegativeReals,
         doc='New process capacity (MW)')
+    ############################################################################
+    m.cap_pro = pyomo.Expression(m.pro_tuples, rule=def_process_capacity_rule)
+    ############################################################################
     m.tau_pro = pyomo.Var(
         m.t, m.pro_tuples,
         within=pyomo.NonNegativeReals,
@@ -307,11 +310,11 @@ def create_model(data, mode, dt=1, timesteps=None, objective='cost',
             m.pro_tuples,
             rule=def_int_process_capacity_rule,
             doc='total process capacity = inst-cap + new capacity')
-    else:
-        m.def_process_capacity = pyomo.Constraint(
-            m.pro_tuples,
-            rule=def_process_capacity_rule,
-            doc='total process capacity = inst-cap + new capacity')
+    # else:
+    #     m.def_process_capacity = pyomo.Constraint(
+    #         m.pro_tuples,
+    #         rule=def_process_capacity_rule,
+    #         doc='total process capacity = inst-cap + new capacity')
     m.def_process_input = pyomo.Constraint(
         m.tm, m.pro_input_tuples - m.pro_partial_input_tuples,
         rule=def_process_input_rule,
@@ -537,12 +540,24 @@ def res_env_total_rule(m, stf, sit, com, com_type):
 
 
 # process
-
-# process capacity == new capacity + existing capacity
+################################################################################
 def def_process_capacity_rule(m, stf, sit, pro):
-    return (m.cap_pro[stf, sit, pro] ==
-            m.cap_pro_new[stf, sit, pro] +
-            m.process_dict['inst-cap'][(stf, sit, pro)])
+    if (m.process_dict['inst-cap'][(stf, sit, pro)] == 
+        m.process_dict['cap-up'][(stf, sit, pro)] == 
+        m.process_dict['cap-lo'][(stf, sit, pro)]):
+        # processes where no expansion is possible
+        cap_pro = m.process_dict['inst-cap'][(stf, sit, pro)]
+    else:
+        cap_pro = (m.cap_pro[stf, sit, pro] ==
+                   m.cap_pro_new[stf, sit, pro] +
+                   m.process_dict['inst-cap'][(stf, sit, pro)])
+    return cap_pro
+################################################################################
+# # process capacity == new capacity + existing capacity
+# def def_process_capacity_rule(m, stf, sit, pro):
+#     return (m.cap_pro[stf, sit, pro] ==
+#             m.cap_pro_new[stf, sit, pro] +
+#             m.process_dict['inst-cap'][(stf, sit, pro)])
 
 # process capacity for intertemporal planning
 def def_int_process_capacity_rule(m, stf, sit, pro):
