@@ -33,10 +33,10 @@ dt = 1  # length of each time step (unit: hours)
 # Non Intertemporal
 # plotting commodities/sites
 plot_tuples = [
-    (2018, 'North', 'Elec'),
-    (2018, 'Mid', 'Elec'),
-    (2018, 'South', 'Elec'),
-    (2018, ['North', 'Mid', 'South'], 'Elec')]
+    (2019, 'North', 'Elec'),
+    (2019, 'Mid', 'Elec'),
+    (2019, 'South', 'Elec'),
+    (2019, ['North', 'Mid', 'South'], 'Elec')]
 
 # optional: define names for sites in plot_tuples
 
@@ -44,8 +44,8 @@ plot_sites_name = {('North', 'Mid', 'South'): 'All'}
 
 # detailed reporting commodity/sites
 report_tuples = [
-    (2018,'North', 'Elec'), (2018,'Mid', 'Elec'), (2018,'South', 'Elec'),
-    (2018,'North', 'CO2'), (2018,'Mid', 'CO2'), (2018,'South', 'CO2')]
+    (2019,'North', 'Elec'), (2019,'Mid', 'Elec'), (2019,'South', 'Elec'),
+    (2019,'North', 'CO2'), (2019,'Mid', 'CO2'), (2019,'South', 'CO2')]
 
 # optional: define names for sites in report_tuples
 report_sites_name = {'North': 'Greenland'}
