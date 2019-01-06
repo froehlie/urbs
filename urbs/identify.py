@@ -17,7 +17,7 @@ def identify_mode(filename):
         file in the Input folder
 
     Returns:
-        mode dictionary: contain bool values that define the urbs mode
+        mode dictionary: contains bool values that define the urbs mode
 
     """
 
