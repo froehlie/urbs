@@ -4,10 +4,14 @@ import pyomo.core as pyomo
 def add_time_variable_efficiency(m):
 
     # process tuples for time variable efficiency
+    tve_stflist = set()
+    # get all support timeframes for which time variable efficiency is enabled
+    for key in m.eff_factor_dict[tuple(m.eff_factor_dict.keys())[0]]:
+        tve_stflist.add(tuple(key)[0])
     m.pro_timevar_output_tuples = pyomo.Set(
         within=m.stf*m.sit*m.pro*m.com,
         initialize=[(stf, site, process, commodity)
-                    for stf in m.stf_list
+                    for stf in tve_stflist
                     for (site, process) in tuple(m.eff_factor_dict.keys())
                     for (st, pro, commodity) in tuple(m.r_out_dict.keys())
                     if process == pro and st == stf and commodity not in

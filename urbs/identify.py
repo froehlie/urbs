@@ -1,7 +1,6 @@
 import pandas as pd
-
-
-def identify_mode(filename):
+    
+def identify_mode(data):
     """ Identify the urbs mode that is needed for running the current Input
 
         The different modes/features are:
@@ -31,32 +30,20 @@ def identify_mode(filename):
         'tve': False    # time variable efficiency
         }
 
-    with pd.ExcelFile(filename) as xls:
-        # Intertemporal mode
-        if 'Support timeframe' in xls.parse('Global') \
-                                        .set_index('Property').value:
-            mode['int'] = True
-        # Transmission mode
-        if 'Transmission' in xls.sheet_names \
-            and not xls.parse('Transmission').set_index(
-                ['Site In', 'Site Out', 'Transmission', 'Commodity']).empty:
-            mode['tra'] = True
-        # Storage mode
-        if 'Storage' in xls.sheet_names \
-            and not xls.parse('Storage').set_index(
-                ['Site', 'Storage', 'Commodity']).empty:
-            mode['sto'] = True
-        # Demand side management mode
-        if 'DSM' in xls.sheet_names \
-                and not xls.parse('DSM').set_index(
-                ['Site', 'Commodity']).empty:
-            mode['dsm'] = True
-        # Buy sell price mode
-        if 'Buy-Sell-Price' in xls.sheet_names \
-                and not xls.parse('Buy-Sell-Price').set_index(['t']).empty:
-            mode['bsp'] = True
-        if 'TimeVarEff' in xls.sheet_names \
-                and not xls.parse('TimeVarEff').set_index(['t']).empty:
-            mode['tve'] = True
+    # if number of support timeframes > 1
+    if len(data['global_prop'].index.levels[0]) > 1:
+        mode['int'] = True
+    if not data['transmission'].empty:
+        mode['tra'] = True
+    if not data['storage'].empty:
+        mode['sto'] = True
+    if not data['dsm'].empty:
+        mode['dsm'] = True
+    if not data['buy_sell_price'].empty:
+        mode['bsp'] = True
+    if not data['eff_factor'].empty:
+        mode['tve'] = True
 
+
+    print(mode)
     return mode

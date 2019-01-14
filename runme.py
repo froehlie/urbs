@@ -23,102 +23,102 @@ shutil.copy(__file__, result_dir)
 objective = 'cost' # set either 'cost' or 'CO2' as objective
 
 # Choose Solver (cplex, glpk, gurobi, ...)
-Solver = 'glpk'
+Solver = 'cplex'
 
 # simulation timesteps
 (offset, length) = (3500, 168)  # time step selection
 timesteps = range(offset, offset+length+1)
 dt = 1  # length of each time step (unit: hours)
 
-# Non Intertemporal
-# plotting commodities/sites
-plot_tuples = [
-    (2019, 'North', 'Elec'),
-    (2019, 'Mid', 'Elec'),
-    (2019, 'South', 'Elec'),
-    (2019, ['North', 'Mid', 'South'], 'Elec')]
-
-# optional: define names for sites in plot_tuples
-
-plot_sites_name = {('North', 'Mid', 'South'): 'All'}
-
-# detailed reporting commodity/sites
-report_tuples = [
-    (2019,'North', 'Elec'), (2019,'Mid', 'Elec'), (2019,'South', 'Elec'),
-    (2019,'North', 'CO2'), (2019,'Mid', 'CO2'), (2019,'South', 'CO2')]
-
-# optional: define names for sites in report_tuples
-report_sites_name = {'North': 'Greenland'}
-
-# # Intertemporal
-
+# # Non Intertemporal
 # # plotting commodities/sites
 # plot_tuples = [
-#     (2015, 'Campus', 'Elec'),
-#     (2015, 'Campus', 'Heat'),
-#     (2015, 'Campus', 'Cold'),
-#     (2015, 'Campus', 'Heat low'),
-#     (2020, 'Campus', 'Elec'),
-#     (2020, 'Campus', 'Heat'),
-#     (2020, 'Campus', 'Cold'),
-#     (2020, 'Campus', 'Heat low'),
-#     (2025, 'Campus', 'Elec'),
-#     (2025, 'Campus', 'Heat'),
-#     (2025, 'Campus', 'Cold'),
-#     (2025, 'Campus', 'Heat low'),
-#     (2030, 'Campus', 'Elec'),
-#     (2030, 'Campus', 'Heat'),
-#     (2030, 'Campus', 'Cold'),
-#     (2030, 'Campus', 'Heat low'),
-#     (2035, 'Campus', 'Elec'),
-#     (2035, 'Campus', 'Heat'),
-#     (2035, 'Campus', 'Cold'),
-#     (2035, 'Campus', 'Heat low'),
-#     (2040, 'Campus', 'Elec'),
-#     (2040, 'Campus', 'Heat'),
-#     (2040, 'Campus', 'Cold'),
-#     (2040, 'Campus', 'Heat low')
-#     ]
+#     (2019, 'North', 'Elec'),
+#     (2019, 'Mid', 'Elec'),
+#     (2019, 'South', 'Elec'),
+#     (2019, ['North', 'Mid', 'South'], 'Elec')]
 
 # # optional: define names for sites in plot_tuples
-# plot_sites_name = {}
+
+# plot_sites_name = {('North', 'Mid', 'South'): 'All'}
 
 # # detailed reporting commodity/sites
 # report_tuples = [
-#     (2015, 'Campus', 'Elec'),
-#     (2015, 'Campus', 'Heat'),
-#     (2015, 'Campus', 'Cold'),
-#     (2015, 'Campus', 'Heat low'),
-#     (2015, 'Campus', 'CO2'),
-#     (2020, 'Campus', 'Elec'),
-#     (2020, 'Campus', 'Heat'),
-#     (2020, 'Campus', 'Cold'),
-#     (2020, 'Campus', 'CO2'),
-#     (2020, 'Campus', 'Heat low'),
-#     (2025, 'Campus', 'Elec'),
-#     (2025, 'Campus', 'Heat'),
-#     (2025, 'Campus', 'Cold'),
-#     (2025, 'Campus', 'Heat low'),
-#     (2025, 'Campus', 'CO2'),
-#     (2030, 'Campus', 'Elec'),
-#     (2030, 'Campus', 'Heat'),
-#     (2030, 'Campus', 'Cold'),
-#     (2030, 'Campus', 'Heat low'),
-#     (2030, 'Campus', 'CO2'),
-#     (2035, 'Campus', 'Elec'),
-#     (2035, 'Campus', 'Heat'),
-#     (2035, 'Campus', 'Cold'),
-#     (2035, 'Campus', 'Heat low'),
-#     (2035, 'Campus', 'CO2'),
-#     (2040, 'Campus', 'Elec'),
-#     (2040, 'Campus', 'Heat'),
-#     (2040, 'Campus', 'Cold'),
-#     (2040, 'Campus', 'Heat low'),
-#     (2040, 'Campus', 'CO2'),
-#     ]
+#     (2019,'North', 'Elec'), (2019,'Mid', 'Elec'), (2019,'South', 'Elec'),
+#     (2019,'North', 'CO2'), (2019,'Mid', 'CO2'), (2019,'South', 'CO2')]
 
 # # optional: define names for sites in report_tuples
-# report_sites_name = {}
+# report_sites_name = {'North': 'Greenland'}
+
+# Intertemporal
+
+# plotting commodities/sites
+plot_tuples = [
+    (2015, 'Campus', 'Elec'),
+    (2015, 'Campus', 'Heat'),
+    (2015, 'Campus', 'Cold'),
+    (2015, 'Campus', 'Heat low'),
+    (2020, 'Campus', 'Elec'),
+    (2020, 'Campus', 'Heat'),
+    (2020, 'Campus', 'Cold'),
+    (2020, 'Campus', 'Heat low'),
+    (2025, 'Campus', 'Elec'),
+    (2025, 'Campus', 'Heat'),
+    (2025, 'Campus', 'Cold'),
+    (2025, 'Campus', 'Heat low'),
+    (2030, 'Campus', 'Elec'),
+    (2030, 'Campus', 'Heat'),
+    (2030, 'Campus', 'Cold'),
+    (2030, 'Campus', 'Heat low'),
+    (2035, 'Campus', 'Elec'),
+    (2035, 'Campus', 'Heat'),
+    (2035, 'Campus', 'Cold'),
+    (2035, 'Campus', 'Heat low'),
+    (2040, 'Campus', 'Elec'),
+    (2040, 'Campus', 'Heat'),
+    (2040, 'Campus', 'Cold'),
+    (2040, 'Campus', 'Heat low')
+    ]
+
+# optional: define names for sites in plot_tuples
+plot_sites_name = {}
+
+# detailed reporting commodity/sites
+report_tuples = [
+    (2015, 'Campus', 'Elec'),
+    (2015, 'Campus', 'Heat'),
+    (2015, 'Campus', 'Cold'),
+    (2015, 'Campus', 'Heat low'),
+    (2015, 'Campus', 'CO2'),
+    (2020, 'Campus', 'Elec'),
+    (2020, 'Campus', 'Heat'),
+    (2020, 'Campus', 'Cold'),
+    (2020, 'Campus', 'CO2'),
+    (2020, 'Campus', 'Heat low'),
+    (2025, 'Campus', 'Elec'),
+    (2025, 'Campus', 'Heat'),
+    (2025, 'Campus', 'Cold'),
+    (2025, 'Campus', 'Heat low'),
+    (2025, 'Campus', 'CO2'),
+    (2030, 'Campus', 'Elec'),
+    (2030, 'Campus', 'Heat'),
+    (2030, 'Campus', 'Cold'),
+    (2030, 'Campus', 'Heat low'),
+    (2030, 'Campus', 'CO2'),
+    (2035, 'Campus', 'Elec'),
+    (2035, 'Campus', 'Heat'),
+    (2035, 'Campus', 'Cold'),
+    (2035, 'Campus', 'Heat low'),
+    (2035, 'Campus', 'CO2'),
+    (2040, 'Campus', 'Elec'),
+    (2040, 'Campus', 'Heat'),
+    (2040, 'Campus', 'Cold'),
+    (2040, 'Campus', 'Heat low'),
+    (2040, 'Campus', 'CO2'),
+    ]
+
+# optional: define names for sites in report_tuples
+report_sites_name = {}
 
 # plotting timesteps
 plot_periods = {

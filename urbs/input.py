@@ -5,7 +5,7 @@ from xlrd import XLRDError
 import pyomo.core as pyomo
 from datetime import date
 from .features.modelhelper import *
-from .identify import identify_mode
+from .identify import *
 
 
 def read_input(input_files):
@@ -50,17 +50,15 @@ def read_input(input_files):
     ds = []
     ef = []
 
-    # get mode
-    mode = identify_mode(input_files[0])
-    print("Activated features: ", mode)
 
     for filename in input_files:
-        # identify mode of input_file
         with pd.ExcelFile(filename) as xls:
 
             global_prop = xls.parse('Global').set_index(['Property'])
             # create support timeframe index
-            if mode['int']:
+            if ('Support timeframe' in 
+                xls.parse('Global').set_index('Property').value):
+                is_intertemporal = True
                 support_timeframe = (
                     global_prop.loc['Support timeframe']['value'])
                 global_prop = (
@@ -107,7 +105,7 @@ def read_input(input_files):
 
             # collect data for the additional features
             # Transmission, Storage, DSM
-            if mode['tra']:
+            if 'Transmission' in xls.sheet_names:
                 transmission = (
                     xls.parse('Transmission')
                     .set_index(['Site In', 'Site Out',
@@ -115,37 +113,47 @@ def read_input(input_files):
                 transmission = (
                     pd.concat([transmission], keys=[support_timeframe],
                               names=['support_timeframe']))
-                tra.append(transmission)
-            if mode['sto']:
+            else:
+                transmission = pd.DataFrame()
+            tra.append(transmission)
+            if 'Storage' in xls.sheet_names:
                 storage = (
                     xls.parse('Storage')
                     .set_index(['Site', 'Storage', 'Commodity']))
                 storage = pd.concat([storage], keys=[support_timeframe],
                                     names=['support_timeframe'])
-                sto.append(storage)
-            if mode['dsm']:
+            else:
+                storage = pd.DataFrame()
+            sto.append(storage)
+            if 'DSM' in xls.sheet_names:
                 dsm = xls.parse('DSM').set_index(['Site', 'Commodity'])
                 dsm = pd.concat([dsm], keys=[support_timeframe],
                                 names=['support_timeframe'])
-                ds.append(dsm)
-            if mode['bsp']:
+            else:
+                dsm = pd.DataFrame()
+            ds.append(dsm)
+            if 'Buy-Sell-Price'in xls.sheet_names:
                 buy_sell_price = xls.parse('Buy-Sell-Price').set_index(['t'])
                 buy_sell_price = pd.concat([buy_sell_price],
                                         keys=[support_timeframe],
                                         names=['support_timeframe'])
                 buy_sell_price.columns = \
                     split_columns(buy_sell_price.columns, '.')
-                bsp.append(buy_sell_price)
-            if mode['tve']:
+            else:
+                buy_sell_price = pd.DataFrame()
+            bsp.append(buy_sell_price)
+            if 'TimeVarEff' in xls.sheet_names:
                 eff_factor = (xls.parse('TimeVarEff').set_index(['t']))
                 eff_factor = pd.concat([eff_factor], keys=[support_timeframe],
                                        names=['support_timeframe'])
                 eff_factor.columns = split_columns(eff_factor.columns, '.')
-                ef.append(eff_factor)
+            else:
+                eff_factor = pd.DataFrame()
+            ef.append(eff_factor)
 
     # prepare input data
 
-    if mode['int']:
+    if is_intertemporal:
         global_prop = pd.concat(gl)
         site = pd.concat(sit)
         commodity = pd.concat(com)
@@ -153,16 +161,11 @@ def read_input(input_files):
         process_commodity = pd.concat(pro_com)
         demand = pd.concat(dem)
         supim = pd.concat(sup)
-        if mode['tra']:
-            transmission = pd.concat(tra)
-        if mode['sto']:
-            storage = pd.concat(sto)
-        if mode['dsm']:
-            dsm = pd.concat(ds)
-        if mode['bsp']:
-            buy_sell_price = pd.concat(bsp)
-        if mode['tve']:
-            eff_factor = pd.concat(ef)
+        transmission = pd.concat(tra)
+        storage = pd.concat(sto)
+        dsm = pd.concat(ds)
+        buy_sell_price = pd.concat(bsp)
+        eff_factor = pd.concat(ef)
 
     data = {
         'global_prop': global_prop,
@@ -172,29 +175,22 @@ def read_input(input_files):
         'process_commodity': process_commodity,
         'demand': demand,
         'supim': supim,
+        'transmission': transmission,
+        'storage': storage,
+        'dsm': dsm,
+        'buy_sell_price': buy_sell_price,
+        'eff_factor': eff_factor
         }
-
-    # write data for additional features into "data"
-    if mode['tra']:
-        data['transmission'] = transmission
-    if mode['sto']:
-        data['storage'] = storage
-    if mode['dsm']:
-        data['dsm'] = dsm
-    if mode['bsp']:
-        data['buy_sell_price'] = buy_sell_price
-    if mode['tve']:
-        data['eff_factor'] = eff_factor
 
     # sort nested indexes to make direct assignments work
     for key in data:
         if isinstance(data[key].index, pd.core.index.MultiIndex):
             data[key].sort_index(inplace=True)
-    return data, mode
+    return data
 
 
 # preparing the pyomo model
-def pyomo_model_prep(data, mode, timesteps):
+def pyomo_model_prep(data, timesteps):
     m = pyomo.ConcreteModel()
 
     # Preparations
@@ -205,7 +201,7 @@ def pyomo_model_prep(data, mode, timesteps):
     #     storage.loc[site, storage, commodity][attribute]
     #
 
-    m.mode = mode
+    m.mode = identify_mode(data)
     m.timesteps = timesteps
     m.global_prop = data['global_prop']
     process = data['process']
@@ -225,17 +221,19 @@ def pyomo_model_prep(data, mode, timesteps):
 
     # additional features
     if m.mode['tra']:
-        transmission = data['transmission']
+        transmission = data['transmission'].dropna(axis=0, how='all')
     if m.mode['sto']:
-        storage = data['storage']
+        storage = data['storage'].dropna(axis=0, how='all')
     if m.mode['dsm']:
-        m.dsm_dict = data["dsm"].to_dict()
+        m.dsm_dict = data["dsm"].dropna(axis=0, how='all').to_dict()
     if m.mode['bsp']:
-        m.buy_sell_price_dict = data["buy_sell_price"].to_dict()
+        m.buy_sell_price_dict = \
+            data["buy_sell_price"].dropna(axis=0, how='all').to_dict()
         # adding Revenue and Pruchase to cost types
         m.cost_type_list.extend(['Revenue', 'Purchase'])
     if m.mode['tve']:
-        m.eff_factor_dict = data["eff_factor"].to_dict()
+        m.eff_factor_dict = \
+            data["eff_factor"].dropna(axis=0, how='all').to_dict()
 
     # Create columns of support timeframe values
     commodity['support_timeframe'] = (commodity.index.
@@ -313,7 +311,7 @@ def pyomo_model_prep(data, mode, timesteps):
                               m.global_prop.loc[
                               (max(commodity.index.get_level_values
                                    ('support_timeframe').unique()),
-                               'Weight')]['value'] - 1)
+                                    'Weight')]['value'] - 1)
         process['invcost-factor'] = (process.apply(
                                      lambda x: invcost_factor(
                                       x['depreciation'],

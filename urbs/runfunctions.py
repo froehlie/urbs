@@ -73,9 +73,9 @@ def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt,
 
     # scenario name, read and modify data for scenario
     sce = scenario.__name__
-    data, mode = read_input(input_files)
+    data = read_input(input_files)
     data = scenario(data)
-    validate_input(data, mode)
+    validate_input(data)
 
     # measure time to read file
     t_read = time.time() - t_start
@@ -83,8 +83,8 @@ def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt,
 
     t = time.time()
     # create model
-    prob = create_model(data, mode, dt, timesteps, objective)
-    # prob.write('model.lp', io_options={'symbolic_solver_labels':True})
+    prob = create_model(data, dt, timesteps, objective)
+    prob.write('model.lp', io_options={'symbolic_solver_labels':True})
 
     # measure time to create model
     t_model = time.time() - t
@@ -109,7 +109,7 @@ def run_scenario(input_files, Solver, timesteps, scenario, result_dir, dt,
     t = time.time()
 
     # save problem solution (and input data) to HDF5 file
-    save(prob, os.path.join(result_dir, '{}.h5'.format(sce)))
+    # save(prob, os.path.join(result_dir, '{}.h5'.format(sce)))
 
     # # measure time to save solution
     # save_time = time.time() - t

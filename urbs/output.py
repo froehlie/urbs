@@ -33,7 +33,7 @@ def get_constants(instance):
     """
     costs = get_entity(instance, 'costs')
     cpro = get_entities(instance, ['cap_pro', 'cap_pro_new'])
-
+    
     # better labels and index names and return sorted
     if not cpro.empty:
         cpro.index.names = ['Stf', 'Site', 'Process']

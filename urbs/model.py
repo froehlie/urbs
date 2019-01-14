@@ -5,7 +5,7 @@ from .features import *
 from .input import *
 
 
-def create_model(data, mode, dt=1, timesteps=None, objective='cost',
+def create_model(data, dt=1, timesteps=None, objective='cost',
                  dual=False):
     """Create a pyomo ConcreteModel urbs object from given input data.
 
@@ -23,7 +23,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective='cost',
     # Optional
     if not timesteps:
         timesteps = data['demand'].index.tolist()
-    m = pyomo_model_prep(data, mode, timesteps)  # preparing pyomo model
+    m = pyomo_model_prep(data, timesteps)  # preparing pyomo model
     m.name = 'urbs'
     m.created = datetime.now().strftime('%Y%m%dT%H%M')
     m._data = data
@@ -241,16 +241,18 @@ def create_model(data, mode, dt=1, timesteps=None, objective='cost',
         doc='Use of stock commodity source (MW) per timestep')
 
     # process
-    # m.cap_pro = pyomo.Var(
-    #     m.pro_tuples,
-    #     within=pyomo.NonNegativeReals,
-    #     doc='Total process capacity (MW)')
     m.cap_pro_new = pyomo.Var(
         m.pro_tuples,
         within=pyomo.NonNegativeReals,
         doc='New process capacity (MW)')
-    # cap_pro as expression (variable if expansion is possible, else static)
-    m.cap_pro = pyomo.Expression(m.pro_tuples, rule=def_process_capacity_rule)
+
+    # process capacity as expression object
+    # (variable if expansion is possible, else static)
+    m.cap_pro = pyomo.Expression(
+        m.pro_tuples, 
+        rule=def_process_capacity_rule,
+        doc='total process capacity')
+
     m.tau_pro = pyomo.Var(
         m.t, m.pro_tuples,
         within=pyomo.NonNegativeReals,
@@ -304,7 +306,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective='cost',
         doc='total environmental commodity output <= commodity.max')
 
     # process
-
     m.def_process_input = pyomo.Constraint(
         m.tm, m.pro_input_tuples - m.pro_partial_input_tuples,
         rule=def_process_input_rule,
@@ -531,15 +532,15 @@ def res_env_total_rule(m, stf, sit, com, com_type):
 
 # process
 
-# process capacity for intertemporal planning
+# process capacity (for m.cap_pro Expression)
 def def_process_capacity_rule(m, stf, sit, pro):
-    no_expansion = (m.process_dict['inst-cap'][(stf, sit, pro)] == 
-                    m.process_dict['cap-up'][(stf, sit, pro)] == 
-                    m.process_dict['cap-lo'][(stf, sit, pro)])
     if m.mode['int']:
         if (sit, pro, stf) in m.inst_pro_tuples:
-            if no_expansion:
-                cap_pro = m.process_dict['inst-cap'][(stf, sit, pro)]
+            # if no expansion possible
+            if (m.process_dict['inst-cap'][(min(m.stf), sit, pro)] == 
+                    m.process_dict['cap-up'][(stf, sit, pro)] == 
+                    m.process_dict['cap-lo'][(stf, sit, pro)]):
+                cap_pro = m.process_dict['inst-cap'][(min(m.stf), sit, pro)]
             else:
                 cap_pro = \
                 (sum(m.cap_pro_new[stf_built, sit, pro]
@@ -552,8 +553,10 @@ def def_process_capacity_rule(m, stf, sit, pro):
                 for stf_built in m.stf
                 if (sit, pro, stf_built, stf) in m.operational_pro_tuples)
     else:
-        # non intertemporal modeling
-        if no_expansion:
+        # if no expansion possible
+        if (m.process_dict['inst-cap'][(stf, sit, pro)] == 
+            m.process_dict['cap-up'][(stf, sit, pro)] == 
+            m.process_dict['cap-lo'][(stf, sit, pro)]):
             cap_pro = m.process_dict['inst-cap'][(stf, sit, pro)]
         else:
             cap_pro = (m.cap_pro_new[stf, sit, pro] +
