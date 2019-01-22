@@ -10,6 +10,8 @@ def identify_mode(data):
             DSM
             Buy Sell (Price)
             Time Variable efficiency
+            Expansion ( 4 values for process, transmission,storage capacity and
+                        storage power expansion )
 
     Args:
         the input excel file, in case of intertemporal planning the first excel
@@ -17,17 +19,25 @@ def identify_mode(data):
 
     Returns:
         mode dictionary: contains bool values that define the urbs mode
+        m.mode['exp'] will be initialized with 'True' if the corresponing mode 
+        (e.g. transmission) is also enabled and later updated through
+        identify_expansion(m) 
 
     """
 
     # create modes
     mode = {
-        'int': False,   # intertemporal
-        'tra': False,   # transmission
-        'sto': False,   # storage
-        'dsm': False,   # demand site management
-        'bsp': False,   # buy sell price
-        'tve': False    # time variable efficiency
+        'int': False,                   # intertemporal
+        'tra': False,                   # transmission
+        'sto': False,                   # storage
+        'dsm': False,                   # demand site management
+        'bsp': False,                   # buy sell price
+        'tve': False,                   # time variable efficiency
+        'exp': {                        # expansion
+                'pro': True,
+                'tra': False,
+                'sto-c': False,
+                'sto-p': False }
         }
 
     # if number of support timeframes > 1
@@ -35,8 +45,11 @@ def identify_mode(data):
         mode['int'] = True
     if not data['transmission'].empty:
         mode['tra'] = True
+        mode['exp']['tra'] = True
     if not data['storage'].empty:
         mode['sto'] = True
+        mode['exp']['sto-c'] = True
+        mode['exp']['sto-p'] = True
     if not data['dsm'].empty:
         mode['dsm'] = True
     if not data['buy_sell_price'].empty:
@@ -44,6 +57,20 @@ def identify_mode(data):
     if not data['eff_factor'].empty:
         mode['tve'] = True
 
-
-    print(mode)
     return mode
+
+def identify_expansion(const_unit_df, inst_cap_df):
+    """ Identify if the model will be with expansion. The criterion for which
+        no expansion is possible is "cap-lo == inst-cap == cap-up" for all 
+        support timeframes
+
+        Here the the number of items in dataframe with constant units will be 
+        compared to the the number of items to which 'inst-cap' is given 
+
+    """
+    if const_unit_df.count() == inst_cap_df.count():
+        return False
+    else:
+        return False
+
+

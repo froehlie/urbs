@@ -140,11 +140,15 @@ def def_storage_capacity_rule(m, stf, sit, sto, com):
     if m.mode['int']:
         if (sit, sto, com, stf) in m.inst_sto_tuples:
             # if no expansion possible
-            if (m.storage_dict['inst-cap-c'][(min(m.stf), sit, sto, com)] ==
+            if (stf == min(m.stf) and 
+                m.storage_dict['inst-cap-c'][(stf, sit, sto, com)] ==
                 m.storage_dict['cap-up-c'][(stf, sit, sto, com)] ==
                 m.storage_dict['cap-lo-c'][(stf, sit, sto, com)]):
                 cap_sto_c = m.storage_dict['inst-cap-c'][
-                    (min(m.stf), sit, sto, com)]
+                    (stf, sit, sto, com)]
+            elif(m.storage_dict['cap-up-c'][(stf, sit, sto, com)] ==
+                 m.storage_dict['cap-lo-c'][(stf, sit, sto, com)]):
+                cap_sto_c = m.storage_dict['cap-up-c'][(stf, sit, sto, com)]
             else:
                 cap_sto_c = (
                     sum(m.cap_sto_c_new[stf_built, sit, sto, com]
@@ -175,12 +179,15 @@ def def_storage_power_rule(m, stf, sit, sto, com):
     if m.mode['int']:
         if (sit, sto, com, stf) in m.inst_sto_tuples:
             # if no expansion possible
-            if (
-                m.storage_dict['inst-cap-p'][(min(m.stf), sit, sto, com)] ==
-                m.storage_dict['cap-lo-p'][(stf, sit, sto, com)] ==
-                m.storage_dict['cap-up-p'][(stf, sit, sto, com)]):
+            if (stf == min(m.stf) and 
+                m.storage_dict['inst-cap-p'][(stf, sit, sto, com)] ==
+                m.storage_dict['cap-up-p'][(stf, sit, sto, com)] ==
+                m.storage_dict['cap-lo-p'][(stf, sit, sto, com)]):
                 cap_sto_p = m.storage_dict['inst-cap-p'][
-                    (min(m.stf), sit, sto, com)]
+                    (stf, sit, sto, com)]
+            elif(m.storage_dict['cap-up-p'][(stf, sit, sto, com)] ==
+                 m.storage_dict['cap-lo-p'][(stf, sit, sto, com)]):
+                cap_sto_p = m.storage_dict['cap-up-p'][(stf, sit, sto, com)]
             else:
                 cap_sto_p = (
                     sum(m.cap_sto_p_new[stf_built, sit, sto, com]

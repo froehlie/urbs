@@ -21,4 +21,4 @@ from .report import report
 from .runfunctions import *
 from .saveload import load, save
 from .scenarios import *
-from .identify import identify_mode
+from .identify import identify_mode, identify_expansion
