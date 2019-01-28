@@ -542,7 +542,6 @@ def def_process_capacity_rule(m, stf, sit, pro):
                 m.process_dict['cap-up'][(stf, sit, pro)] == 
                 m.process_dict['cap-lo'][(stf, sit, pro)]):
                 cap_pro = m.process_dict['inst-cap'][(stf, sit, pro)]
-
             elif (m.process_dict['cap-up'][(stf, sit, pro)] == 
                   m.process_dict['cap-lo'][(stf, sit, pro)]):
                 cap_pro = m.process_dict['cap-up'][(stf, sit, pro)]

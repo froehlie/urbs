@@ -207,7 +207,7 @@ def pyomo_model_prep(data, timesteps):
     commodity = data['commodity']
     process = data['process'] 
 
-    # create no expansin dataframes
+    # create no expansion dataframes
     pro_const_cap = process[process['inst-cap'] == process['cap-up']]
     pro_const_cap = pro_const_cap[process['inst-cap'] == process['cap-lo']]
 
@@ -384,7 +384,8 @@ def pyomo_model_prep(data, timesteps):
         if m.mode['tra']:
             # modify tra_const_cap for intertemporal mode
             for index in tuple(tra_const_cap.index):
-                stf_transmission = transmission.xs((index[1,2,3,4]),level = (1,2,3,4))
+                stf_transmission = transmission.xs((index[1,2,3,4]),
+                    level = (1,2,3,4))
                 if (not stf_transmission['cap-up'].max(axis=0) == 
                     tra_const_cap.loc[index]['inst-cap']):
                     tra_const_cap = tra_const_cap.drop(index)

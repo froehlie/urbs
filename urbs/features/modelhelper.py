@@ -92,23 +92,23 @@ def stf_dist(stf, m):
 def discount_factor(stf, m):
     """Discount for any payment made in the year stf
     """
-    j = (m.global_prop.xs('Discount rate', level=1)
-         .loc[m.global_prop.index.min()[0]]['value'])
+    discount = (m.global_prop.xs('Discount rate', level=1)
+               .loc[m.global_prop.index.min()[0]]['value'])
 
-    return (1+j) ** (1-(stf-m.global_prop.index.min()[0]))
+    return (1+discount) ** (1-(stf-m.global_prop.index.min()[0]))
 
 
 def effective_distance(dist, m):
     """Factor for variable, fuel, purchase, sell, and fix costs.
     Calculated by repetition of modeled stfs and discount utility.
     """
-    j = (m.global_prop.xs('Discount rate', level=1)
+    discount = (m.global_prop.xs('Discount rate', level=1)
          .loc[m.global_prop.index.min()[0]]['value'])
 
-    if j == 0:
+    if discount == 0:
         return dist
     else:
-        return (1-(1+j) ** (-dist)) / j
+        return (1-(1+discount) ** (-dist)) / discount
 
 
 def commodity_balance(m, tm, stf, sit, com):

@@ -71,6 +71,6 @@ def identify_expansion(const_unit_df, inst_cap_df):
     if const_unit_df.count() == inst_cap_df.count():
         return False
     else:
-        return False
+        return True
 
 
