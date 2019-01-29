@@ -3,12 +3,11 @@ import os
 import glob
 from xlrd import XLRDError
 import pyomo.core as pyomo
-from datetime import date
 from .features.modelhelper import *
 from .identify import *
 
 
-def read_input(input_files):
+def read_input(input_files,year):
     """Read Excel input file and prepare URBS input dict.
 
     Reads an Excel spreadsheet that adheres to the structure shown in
@@ -58,14 +57,13 @@ def read_input(input_files):
             # create support timeframe index
             if ('Support timeframe' in 
                 xls.parse('Global').set_index('Property').value):
-                is_intertemporal = True
                 support_timeframe = (
                     global_prop.loc['Support timeframe']['value'])
                 global_prop = (
                     global_prop.drop(['Support timeframe'])
                     .drop(['description'], axis=1))
             else:
-                support_timeframe = date.today().year
+                support_timeframe = year
             global_prop = pd.concat([global_prop], keys=[support_timeframe],
                                     names=['support_timeframe'])
             gl.append(global_prop)
@@ -152,8 +150,7 @@ def read_input(input_files):
             ef.append(eff_factor)
 
     # prepare input data
-
-    if is_intertemporal:
+    try:
         global_prop = pd.concat(gl)
         site = pd.concat(sit)
         commodity = pd.concat(com)
@@ -166,6 +163,8 @@ def read_input(input_files):
         dsm = pd.concat(ds)
         buy_sell_price = pd.concat(bsp)
         eff_factor = pd.concat(ef)
+    except KeyError:
+        pass
 
     data = {
         'global_prop': global_prop,
@@ -326,7 +325,7 @@ def pyomo_model_prep(data, timesteps):
             if (not stf_process['cap-up'].max(axis=0) == 
                 pro_const_cap.loc[index]['inst-cap']):
                 pro_const_cap = pro_const_cap.drop(index)
-            elif (not stf_process['cap-lo'].max(axis=0) == 
+            elif (not stf_process['cap-lo'].min(axis=0) == 
                   pro_const_cap.loc[index]['inst-cap']):
                 pro_const_cap = pro_const_cap.drop(index)
         # derive invest factor from WACC, depreciation and discount untility
@@ -389,7 +388,7 @@ def pyomo_model_prep(data, timesteps):
                 if (not stf_transmission['cap-up'].max(axis=0) == 
                     tra_const_cap.loc[index]['inst-cap']):
                     tra_const_cap = tra_const_cap.drop(index)
-                elif (not stf_transmission['cap-lo'].max(axis=0) == 
+                elif (not stf_transmission['cap-lo'].min(axis=0) == 
                     tra_const_cap.loc[index]['inst-cap']):
                     tra_const_cap = tra_const_cap.drop(index)
             # derive invest factor from WACC, depreciation and 
@@ -442,7 +441,7 @@ def pyomo_model_prep(data, timesteps):
                 if (not stf_storage['cap-up-c'].max(axis=0) == 
                     sto_const_cap_c.loc[index]['inst-cap-c']):
                     sto_const_cap_c = sto_const_cap_c.drop(index)
-                elif (not stf_storage['cap-lo-c'].max(axis=0) == 
+                elif (not stf_storage['cap-lo-c'].min(axis=0) == 
                     sto_const_cap_c.loc[index]['inst-cap-c']):
                     sto_const_cap_p = sto_const_cap_c.drop(index)
             
@@ -451,7 +450,7 @@ def pyomo_model_prep(data, timesteps):
                 if (not stf_storage['cap-up-p'].max(axis=0) == 
                     sto_const_cap_p.loc[index]['inst-cap-p']):
                     sto_const_cap_p = sto_const_cap_p.drop(index)
-                elif (not stf_storage['cap-lo-p'].max(axis=0) == 
+                elif (not stf_storage['cap-lo-p'].min(axis=0) == 
                     sto_const_cap_p.loc[index]['inst-cap-p']):
                     sto_const_cap_p = sto_const_cap_p.drop(index)
 

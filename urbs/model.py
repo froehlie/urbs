@@ -536,15 +536,8 @@ def res_env_total_rule(m, stf, sit, com, com_type):
 def def_process_capacity_rule(m, stf, sit, pro):
     if m.mode['int']:
         if (sit, pro, stf) in m.inst_pro_tuples:
-            # if no expansion possible
-            if (stf == min(m.stf) and
-                m.process_dict['inst-cap'][(stf, sit, pro)] ==
-                m.process_dict['cap-up'][(stf, sit, pro)] == 
-                m.process_dict['cap-lo'][(stf, sit, pro)]):
+            if (sit, pro, min(m.stf)) in m.pro_const_cap_dict:
                 cap_pro = m.process_dict['inst-cap'][(stf, sit, pro)]
-            elif (m.process_dict['cap-up'][(stf, sit, pro)] == 
-                  m.process_dict['cap-lo'][(stf, sit, pro)]):
-                cap_pro = m.process_dict['cap-up'][(stf, sit, pro)]
             else:
                 cap_pro = \
                 (sum(m.cap_pro_new[stf_built, sit, pro]
@@ -557,10 +550,7 @@ def def_process_capacity_rule(m, stf, sit, pro):
                 for stf_built in m.stf
                 if (sit, pro, stf_built, stf) in m.operational_pro_tuples)
     else:
-        # if no expansion possible
-        if (m.process_dict['inst-cap'][(stf, sit, pro)] == 
-            m.process_dict['cap-up'][(stf, sit, pro)] == 
-            m.process_dict['cap-lo'][(stf, sit, pro)]):
+        if (sit, pro, stf) in m.pro_const_cap_dict:
             cap_pro = m.process_dict['inst-cap'][(stf, sit, pro)]
         else:
             cap_pro = (m.cap_pro_new[stf, sit, pro] +

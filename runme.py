@@ -4,7 +4,7 @@ import pandas as pd
 import pyomo.environ
 import shutil
 import urbs
-from datetime import datetime
+from datetime import datetime, date
 from pyomo.opt.base import SolverFactory
 
 
@@ -18,6 +18,9 @@ result_dir = urbs.prepare_result_directory(result_name)  # name + time stamp
 # shutil.copyfile(input_file, os.path.join(result_dir, input_file))
 # copy runme.py to result directory
 shutil.copy(__file__, result_dir)
+
+# set modeled year (default: this year)
+year = date.today().year
 
 # objective function
 objective = 'cost' # set either 'cost' or 'CO2' as objective
@@ -33,10 +36,10 @@ dt = 1  # length of each time step (unit: hours)
 # # Non Intertemporal
 # # plotting commodities/sites
 # plot_tuples = [
-#     (2019, 'North', 'Elec'),
-#     (2019, 'Mid', 'Elec'),
-#     (2019, 'South', 'Elec'),
-#     (2019, ['North', 'Mid', 'South'], 'Elec')]
+#     (year, 'North', 'Elec'),
+#     (year, 'Mid', 'Elec'),
+#     (year, 'South', 'Elec'),
+#     (year, ['North', 'Mid', 'South'], 'Elec')]
 
 # # optional: define names for sites in plot_tuples
 
@@ -44,53 +47,64 @@ dt = 1  # length of each time step (unit: hours)
 
 # # detailed reporting commodity/sites
 # report_tuples = [
-#     (2019,'North', 'Elec'), (2019,'Mid', 'Elec'), (2019,'South', 'Elec'),
-#     (2019,'North', 'CO2'), (2019,'Mid', 'CO2'), (2019,'South', 'CO2')]
+#     (year,'North', 'Elec'), (year,'Mid', 'Elec'), (year,'South', 'Elec'),
+#     (year,'North', 'CO2'), (year,'Mid', 'CO2'), (year,'South', 'CO2')]
 
 # # optional: define names for sites in report_tuples
 # report_sites_name = {'North': 'Greenland'}
 
 # Intertemporal
+# plot_tuples = [
+#     (2019, 'North', 'Elec'),
+#     (2019, 'Mid', 'Elec'),
+#     (2019, 'South', 'Elec'),
+#     (2019, ['North', 'Mid', 'South'], 'Elec'),
+#     (2024, 'North', 'Elec'),
+#     (2024, 'Mid', 'Elec'),
+#     (2024, 'South', 'Elec'),
+#     (2024, ['North', 'Mid', 'South'], 'Elec'),
+#     (2029, 'North', 'Elec'),
+#     (2029, 'Mid', 'Elec'),
+#     (2029, 'South', 'Elec'),
+#     (2029, ['North', 'Mid', 'South'], 'Elec'),
+#     (2034, 'North', 'Elec'),
+#     (2034, 'Mid', 'Elec'),
+#     (2034, 'South', 'Elec'),
+#     (2034, ['North', 'Mid', 'South'], 'Elec')
+#     ]
+# report_tuples = [
+#     (2019, 'North', 'Elec'),
+#     (2019, 'Mid', 'Elec'),
+#     (2019, 'South', 'Elec'),
+#     (2019, ['North', 'Mid', 'South'], 'Elec'),
+#     (2024, 'North', 'Elec'),
+#     (2024, 'Mid', 'Elec'),
+#     (2024, 'South', 'Elec'),
+#     (2024, ['North', 'Mid', 'South'], 'Elec'),
+#     (2029, 'North', 'Elec'),
+#     (2029, 'Mid', 'Elec'),
+#     (2029, 'South', 'Elec'),
+#     (2029, ['North', 'Mid', 'South'], 'Elec'),
+#     (2034, 'North', 'Elec'),
+#     (2034, 'Mid', 'Elec'),
+#     (2034, 'South', 'Elec'),
+#     (2034, ['North', 'Mid', 'South'], 'Elec')    
+# ]
 
 plot_tuples = [
-    (2019, 'North', 'Elec'),
     (2019, 'Mid', 'Elec'),
-    (2019, 'South', 'Elec'),
-    (2019, ['North', 'Mid', 'South'], 'Elec'),
-    (2024, 'North', 'Elec'),
     (2024, 'Mid', 'Elec'),
-    (2024, 'South', 'Elec'),
-    (2024, ['North', 'Mid', 'South'], 'Elec'),
-    (2029, 'North', 'Elec'),
     (2029, 'Mid', 'Elec'),
-    (2029, 'South', 'Elec'),
-    (2029, ['North', 'Mid', 'South'], 'Elec'),
-    (2034, 'North', 'Elec'),
-    (2034, 'Mid', 'Elec'),
-    (2034, 'South', 'Elec'),
-    (2034, ['North', 'Mid', 'South'], 'Elec')
-    ]
-
+    (2034, 'Mid', 'Elec')
+]
 report_tuples = [
-    (2019, 'North', 'Elec'),
     (2019, 'Mid', 'Elec'),
-    (2019, 'South', 'Elec'),
-    (2019, ['North', 'Mid', 'South'], 'Elec'),
-    (2024, 'North', 'Elec'),
     (2024, 'Mid', 'Elec'),
-    (2024, 'South', 'Elec'),
-    (2024, ['North', 'Mid', 'South'], 'Elec'),
-    (2029, 'North', 'Elec'),
     (2029, 'Mid', 'Elec'),
-    (2029, 'South', 'Elec'),
-    (2029, ['North', 'Mid', 'South'], 'Elec'),
-    (2034, 'North', 'Elec'),
-    (2034, 'Mid', 'Elec'),
-    (2034, 'South', 'Elec'),
-    (2034, ['North', 'Mid', 'South'], 'Elec')    
+    (2034, 'Mid', 'Elec')
 ]
 
-plot_sites_name = {('North', 'Mid', 'South'): 'All'}
+plot_sites_name = {}
 
 report_sites_name = {}
 
@@ -201,7 +215,7 @@ timelog.write("Total\tread\tmodel\tsolve\tplot\r\n")
 timelog.close()
 
 for scenario in scenarios:
-    prob = urbs.run_scenario(input_file, Solver, timesteps, scenario, 
+    prob = urbs.run_scenario(input_file, year, Solver, timesteps, scenario, 
                         result_dir, dt, objective, 
                         plot_tuples=plot_tuples,
                         plot_sites_name=plot_sites_name,

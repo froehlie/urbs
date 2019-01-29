@@ -85,16 +85,8 @@ def add_transmission(m):
 def def_transmission_capacity_rule(m, stf, sin, sout, tra, com):
     if m.mode['int']:
         if (sin, sout, tra, com, stf) in m.inst_tra_tuples:
-            # if no expansion possible
-            if (stf == min(m.stf) and 
-                m.transmission_dict['inst-cap'][(stf, sin, sout, tra, com)] ==
-                m.transmission_dict['cap-up'][(stf, sin, sout, tra, com)] ==
-                m.transmission_dict['cap-lo'][(stf, sin, sout, tra, com)]):
+            if (min(m.stf), sin, sout, tra, com) in m.tra_const_cap_dict:
                 cap_tra = m.transmission_dict['inst-cap'][
-                    (stf, sin, sout, tra, com)]
-            elif (m.transmission_dict['cap-up'][(stf, sin, sout, tra, com)] ==
-                  m.transmission_dict['cap-lo'][(stf, sin, sout, tra, com)]):
-                cap_tra = m.transmission_dict['cap-up'][
                     (stf, sin, sout, tra, com)]
             else:
                 cap_tra = (
@@ -111,10 +103,7 @@ def def_transmission_capacity_rule(m, stf, sin, sout, tra, com):
                 if (sin, sout, tra, com, stf_built, stf) in
                 m.operational_tra_tuples))
     else:
-        # if no expansion possible
-        if (m.transmission_dict['inst-cap'][(stf, sin, sout, tra, com)] ==
-            m.transmission_dict['cap-up'][(stf, sin, sout, tra, com)] ==
-            m.transmission_dict['cap-lo'][(stf, sin, sout, tra, com)]):
+        if (stf, sin, sout, tra, com) in m.tra_const_cap_dict:
             cap_tra = \
                 m.transmission_dict['inst-cap'][(stf, sin, sout, tra, com)]
         else:
