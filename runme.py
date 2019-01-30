@@ -33,7 +33,53 @@ Solver = 'gurobi'
 timesteps = range(offset, offset+length+1)
 dt = 1  # length of each time step (unit: hours)
 
-# # Non Intertemporal
+# plotting commodities/sites
+plot_tuples = [
+    (2019, 'North', 'Elec'),
+    (2019, 'Mid', 'Elec'),
+    (2019, 'South', 'Elec'),
+    (2019, ['North', 'Mid', 'South'], 'Elec'),
+    (2024, 'North', 'Elec'),
+    (2024, 'Mid', 'Elec'),
+    (2024, 'South', 'Elec'),
+    (2024, ['North', 'Mid', 'South'], 'Elec'),
+    (2029, 'North', 'Elec'),
+    (2029, 'Mid', 'Elec'),
+    (2029, 'South', 'Elec'),
+    (2029, ['North', 'Mid', 'South'], 'Elec'),
+    (2034, 'North', 'Elec'),
+    (2034, 'Mid', 'Elec'),
+    (2034, 'South', 'Elec'),
+    (2034, ['North', 'Mid', 'South'], 'Elec'),    
+    ]
+
+# optional: define names for sites in plot_tuples
+plot_sites_name = {('North', 'Mid', 'South'): 'All'}
+
+# detailed reporting commodity/sites
+report_tuples = [
+    (2019, 'North', 'Elec'),
+    (2019, 'Mid', 'Elec'),
+    (2019, 'South', 'Elec'),
+    (2019, ['North', 'Mid', 'South'], 'Elec'),
+    (2024, 'North', 'Elec'),
+    (2024, 'Mid', 'Elec'),
+    (2024, 'South', 'Elec'),
+    (2024, ['North', 'Mid', 'South'], 'Elec'),
+    (2029, 'North', 'Elec'),
+    (2029, 'Mid', 'Elec'),
+    (2029, 'South', 'Elec'),
+    (2029, ['North', 'Mid', 'South'], 'Elec'),
+    (2034, 'North', 'Elec'),
+    (2034, 'Mid', 'Elec'),
+    (2034, 'South', 'Elec'),
+    (2034, ['North', 'Mid', 'South'], 'Elec'),    
+    ]
+
+# optional: define names for sites in report_tuples
+report_sites_name = {'North': 'Greenland'}
+
+# # mimo-example
 # # plotting commodities/sites
 # plot_tuples = [
 #     (year, 'North', 'Elec'),
@@ -52,61 +98,7 @@ dt = 1  # length of each time step (unit: hours)
 # # optional: define names for sites in report_tuples
 # report_sites_name = {'North': 'Greenland'}
 
-# Intertemporal
-# plot_tuples = [
-#     (2019, 'North', 'Elec'),
-#     (2019, 'Mid', 'Elec'),
-#     (2019, 'South', 'Elec'),
-#     (2019, ['North', 'Mid', 'South'], 'Elec'),
-#     (2024, 'North', 'Elec'),
-#     (2024, 'Mid', 'Elec'),
-#     (2024, 'South', 'Elec'),
-#     (2024, ['North', 'Mid', 'South'], 'Elec'),
-#     (2029, 'North', 'Elec'),
-#     (2029, 'Mid', 'Elec'),
-#     (2029, 'South', 'Elec'),
-#     (2029, ['North', 'Mid', 'South'], 'Elec'),
-#     (2034, 'North', 'Elec'),
-#     (2034, 'Mid', 'Elec'),
-#     (2034, 'South', 'Elec'),
-#     (2034, ['North', 'Mid', 'South'], 'Elec')
-#     ]
-# report_tuples = [
-#     (2019, 'North', 'Elec'),
-#     (2019, 'Mid', 'Elec'),
-#     (2019, 'South', 'Elec'),
-#     (2019, ['North', 'Mid', 'South'], 'Elec'),
-#     (2024, 'North', 'Elec'),
-#     (2024, 'Mid', 'Elec'),
-#     (2024, 'South', 'Elec'),
-#     (2024, ['North', 'Mid', 'South'], 'Elec'),
-#     (2029, 'North', 'Elec'),
-#     (2029, 'Mid', 'Elec'),
-#     (2029, 'South', 'Elec'),
-#     (2029, ['North', 'Mid', 'South'], 'Elec'),
-#     (2034, 'North', 'Elec'),
-#     (2034, 'Mid', 'Elec'),
-#     (2034, 'South', 'Elec'),
-#     (2034, ['North', 'Mid', 'South'], 'Elec')    
-# ]
-
-plot_tuples = [
-    (2019, 'Mid', 'Elec'),
-    (2024, 'Mid', 'Elec'),
-    (2029, 'Mid', 'Elec'),
-    (2034, 'Mid', 'Elec')
-]
-report_tuples = [
-    (2019, 'Mid', 'Elec'),
-    (2024, 'Mid', 'Elec'),
-    (2029, 'Mid', 'Elec'),
-    (2034, 'Mid', 'Elec')
-]
-
-plot_sites_name = {}
-
-report_sites_name = {}
-
+# # Campus
 # # plotting commodities/sites
 # plot_tuples = [
 #     (2015, 'Campus', 'Elec'),
@@ -191,21 +183,12 @@ for country, color in my_colors.items():
 # select scenarios to be run
 scenarios = [
     urbs.scenario_base,
-    # urbs.scenario_base,
-    # urbs.scenario_base,
-    # urbs.scenario_base,
-    # urbs.scenario_base,
-    # urbs.scenario_base,
-    # urbs.scenario_base,
-    # urbs.scenario_base,
-    # urbs.scenario_base,
-    # urbs.scenario_base,
-    # urbs.scenario_stock_prices,
-    # urbs.scenario_co2_limit
-    # urbs.scenario_co2_tax_mid,
-    # urbs.scenario_no_dsm,
-    # urbs.scenario_north_process_caps,
-    # urbs.scenario_all_together
+    urbs.scenario_stock_prices,
+    urbs.scenario_co2_limit,
+    urbs.scenario_co2_tax_mid,
+    urbs.scenario_no_dsm,
+    urbs.scenario_north_process_caps,
+    urbs.scenario_all_together
     ]
 
 # create timelog
