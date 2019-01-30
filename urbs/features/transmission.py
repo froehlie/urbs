@@ -37,14 +37,17 @@ def add_transmission(m):
                 'through stf')
     
     # Variables
-    m.cap_tra = pyomo.Var(
-        m.tra_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='Total transmission capacity (MW)')
     m.cap_tra_new = pyomo.Var(
         m.tra_tuples,
         within=pyomo.NonNegativeReals,
         doc='New transmission capacity (MW)')
+
+    # transmission capacity as expression object
+    m.cap_tra = pyomo.Expression(
+        m.tra_tuples, 
+        rule=def_transmission_capacity_rule,
+        doc='total transmission capacity')
+
     m.e_tra_in = pyomo.Var(
         m.tm, m.tra_tuples,
         within=pyomo.NonNegativeReals,
@@ -55,16 +58,6 @@ def add_transmission(m):
         doc='Power flow out of transmission line (MW) per timestep')
 
     # transmission
-    if m.mode['int']:
-        m.def_int_transmission_capacity = pyomo.Constraint(
-            m.tra_tuples,
-            rule=def_int_transmission_capacity_rule,
-            doc='total transmission capacity = inst-cap + new capacity')
-    else:
-        m.def_transmission_capacity = pyomo.Constraint(
-            m.tra_tuples,
-            rule=def_transmission_capacity_rule,
-            doc='total transmission capacity = inst-cap + new capacity')
     m.def_transmission_output = pyomo.Constraint(
         m.tm, m.tra_tuples,
         rule=def_transmission_output_rule,
@@ -88,29 +81,36 @@ def add_transmission(m):
 
 # constraints
 
-# transmission capacity == new capacity + existing capacity
+# transmission capacity (for m.cap_tra expression)
 def def_transmission_capacity_rule(m, stf, sin, sout, tra, com):
-    return (m.cap_tra[stf, sin, sout, tra, com] ==
-            m.cap_tra_new[stf, sin, sout, tra, com] +
-            m.transmission_dict['inst-cap'][(stf, sin, sout, tra, com)])
-
-# transmission capacity rule for intertemporal planning
-def def_int_transmission_capacity_rule(m, stf, sin, sout, tra, com):
-    if (sin, sout, tra, com, stf) in m.inst_tra_tuples:
-        return (m.cap_tra[stf, sin, sout, tra, com] ==
-                sum(m.cap_tra_new[stf_built, sin, sout, tra, com]
-                for stf_built in m.stf
-                if (sin, sout, tra, com, stf_built, stf) in
-                m.operational_tra_tuples) +
-                m.transmission_dict['inst-cap']
-                [(min(m.stf), sin, sout, tra, com)])
-    else:
-        return (m.cap_tra[stf, sin, sout, tra, com] ==
+    if m.mode['int']:
+        if (sin, sout, tra, com, stf) in m.inst_tra_tuples:
+            if (min(m.stf), sin, sout, tra, com) in m.tra_const_cap_dict:
+                cap_tra = m.transmission_dict['inst-cap'][
+                    (stf, sin, sout, tra, com)]
+            else:
+                cap_tra = (
+                    sum(m.cap_tra_new[stf_built, sin, sout, tra, com]
+                    for stf_built in m.stf
+                    if (sin, sout, tra, com, stf_built, stf) in
+                    m.operational_tra_tuples) +
+                    m.transmission_dict['inst-cap']
+                    [(min(m.stf), sin, sout, tra, com)])
+        else:
+            cap_tra = (
                 sum(m.cap_tra_new[stf_built, sin, sout, tra, com]
                 for stf_built in m.stf
                 if (sin, sout, tra, com, stf_built, stf) in
                 m.operational_tra_tuples))
-
+    else:
+        if (stf, sin, sout, tra, com) in m.tra_const_cap_dict:
+            cap_tra = \
+                m.transmission_dict['inst-cap'][(stf, sin, sout, tra, com)]
+        else:
+            cap_tra = (m.cap_tra_new[stf, sin, sout, tra, com] +
+                m.transmission_dict['inst-cap'][(stf, sin, sout, tra, com)])
+    
+    return cap_tra
 
 # transmission output == transmission input * efficiency
 def def_transmission_output_rule(m, tm, stf, sin, sout, tra, com):
@@ -158,6 +158,31 @@ def transmission_balance(m, tm, stf, sit, com):
                         in m.tra_tuples
                         if site_out == sit and stframe == stf and
                         commodity == com))
+
+# transmission cost function
+def transmission_cost(m, cost_type):
+    """returns transmission cost function for the different cost types"""
+    if cost_type == 'Invest':
+        cost = sum(m.cap_tra_new[t] *
+                   m.transmission_dict['inv-cost'][t] *
+                   m.transmission_dict['invcost-factor'][t]
+                   for t in m.tra_tuples)
+        if m.mode['int']:
+            cost -= sum(m.cap_tra_new[t] *
+                        m.transmission_dict['inv-cost'][t] *
+                        m.transmission_dict['overpay-factor'][t]
+                        for t in m.tra_tuples)
+        return cost         
+    elif cost_type == 'Fixed':
+        return sum(m.cap_tra[t] * m.transmission_dict['fix-cost'][t] *
+                   m.transmission_dict['cost_factor'][t]
+                   for t in m.tra_tuples)
+    elif cost_type == 'Variable':
+        return sum(m.e_tra_in[(tm,) + t] * m.weight *
+                   m.transmission_dict['var-cost'][t] *
+                   m.transmission_dict['cost_factor'][t]
+                   for tm in m.tm
+                   for t in m.tra_tuples)
 
 
 def op_tra_tuples(tra_tuple, m):

@@ -1,62 +1,76 @@
 import pandas as pd
+    
+def identify_mode(data):
+    """ Identify the urbs mode that is needed for running the current Input
 
+        The different modes/features are:
+            Intertemporal
+            Transmission
+            Storage
+            DSM
+            Buy Sell (Price)
+            Time Variable efficiency
+            Expansion ( 4 values for process, transmission,storage capacity and
+                        storage power expansion )
 
-def identify_mode(filename):
-    """ Identify the urbs mode that is needed for running the current xslx file
-    
-    Minimum mode: only one site, no transmission, no storage, no DSM, no expansion
-    optional features:
-    Intertemporal
-    Transmission
-    Storage
-    DSM
-    Buy Sell (Price)
-    Time Variable efficiency
-    
-    
     Args:
         the input excel file, in case of intertemporal planning the first excel
         file in the Input folder
-    
+
     Returns:
-        mode dictionary: contain bool values that define the urbs mode
+        mode dictionary: contains bool values that define the urbs mode
+        m.mode['exp'] will be initialized with 'True' if the corresponing mode 
+        (e.g. transmission) is also enabled and later updated through
+        identify_expansion(m) 
+
     """
 
     # create modes
     mode = {
-        'int': False,   # intertemporal
-        'tra': False,   # transmission
-        'sto': False,   # storage
-        'dsm': False,   # demand site management
-        'bsp': False,   # buy sell price
-        'tve': False    # time variable efficiency
+        'int': False,                   # intertemporal
+        'tra': False,                   # transmission
+        'sto': False,                   # storage
+        'dsm': False,                   # demand site management
+        'bsp': False,                   # buy sell price
+        'tve': False,                   # time variable efficiency
+        'exp': {                        # expansion
+                'pro': True,
+                'tra': False,
+                'sto-c': False,
+                'sto-p': False }
         }
 
-    with pd.ExcelFile(filename) as xls:
-        # Intertemporal mode
-        if 'Support timeframe' in xls.parse('Global') \
-                                        .set_index('Property').value:
-            mode['int'] = True
-        # Transmission mode
-        if 'Transmission' in xls.sheet_names \
-            and not xls.parse('Transmission').set_index(['Site In', 
-                            'Site Out', 'Transmission', 'Commodity']).empty:
-            mode['tra'] = True
-        # Storage mode
-        if 'Storage' in xls.sheet_names \
-            and not xls.parse('Storage').set_index(['Site', 'Storage', 
-                                                'Commodity']).empty:
-            mode['sto'] = True
-        # Demand side management mode
-        if 'DSM' in xls.sheet_names \
-            and not xls.parse('DSM').set_index(['Site', 'Commodity']).empty:
-            mode['dsm'] = True
-        # Buy sell price mode
-        if 'Buy-Sell-Price' in xls.sheet_names \
-            and not xls.parse('Buy-Sell-Price').set_index(['t']).empty:
-            mode['bsp'] = True 
-        if 'TimeVarEff' in xls.sheet_names \
-            and not xls.parse('TimeVarEff').set_index(['t']).empty:
-            mode['tve'] = True  
+    # if number of support timeframes > 1
+    if len(data['global_prop'].index.levels[0]) > 1:
+        mode['int'] = True
+    if not data['transmission'].empty:
+        mode['tra'] = True
+        mode['exp']['tra'] = True
+    if not data['storage'].empty:
+        mode['sto'] = True
+        mode['exp']['sto-c'] = True
+        mode['exp']['sto-p'] = True
+    if not data['dsm'].empty:
+        mode['dsm'] = True
+    if not data['buy_sell_price'].empty:
+        mode['bsp'] = True
+    if not data['eff_factor'].empty:
+        mode['tve'] = True
 
     return mode
+
+def identify_expansion(const_unit_df, inst_cap_df):
+    """ Identify if the model will be with expansion. The criterion for which
+        no expansion is possible is "cap-lo == inst-cap == cap-up" for all 
+        support timeframes
+
+        Here the the number of items in dataframe with constant units will be 
+        compared to the the number of items to which 'inst-cap' is given 
+
+    """
+    if const_unit_df.count() == inst_cap_df.count():
+        return False
+    else:
+        return True
+
+

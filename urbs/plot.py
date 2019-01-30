@@ -118,18 +118,15 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
     # move demand to its own plot
     demand = consumed.pop('Demand')
     # if DSM mode was activated
-    if prob.mode['dsm']:
-        original = dsm.pop('Unshifted')
-        deltademand = dsm.pop('Delta')
-        try:
-            # detect whether DSM could be used in this plot
-            # if so, show DSM subplot (even if delta == 0 for the whole time)
-            df_dsm = get_input(prob, 'dsm')
-            plot_dsm = df_dsm.loc[(sit, com),
-                                ['cap-max-do', 'cap-max-up']].sum().sum() > 0
-        except (KeyError, TypeError):
-            plot_dsm = False
-    else:
+    original = dsm.pop('Unshifted')
+    deltademand = dsm.pop('Delta')
+    try:
+        # detect whether DSM could be used in this plot
+        # if so, show DSM subplot (even if delta == 0 for the whole time)
+        df_dsm = get_input(prob, 'dsm')
+        plot_dsm = df_dsm.loc[(sit, com),
+                            ['cap-max-do', 'cap-max-up']].sum().sum() > 0
+    except (KeyError, TypeError):
         plot_dsm = False
 
     # remove all columns from created which are all-zeros in both created and
@@ -225,11 +222,9 @@ def plot(prob, stf, com, sit, dt, timesteps, timesteps_plot,
     plt.setp(ax0.get_xticklabels(), visible=False)
 
     # PLOT DEMAND
-
-    if prob.mode['dsm']:
-        # line plot for demand (unshifted) commodities (divided by dt for power)
-        ax0.plot(hoursteps, original.values/dt[0], linewidth=0.8,
-                color=to_color('Unshifted'))
+    # line plot for demand (unshifted) commodities (divided by dt for power)
+    ax0.plot(hoursteps, original.values/dt[0], linewidth=0.8,
+            color=to_color('Unshifted'))
      
     # line plot for demand (in case of DSM mode: shifted) commodities 
     # (divided by dt for power)

@@ -33,31 +33,24 @@ def get_constants(instance):
     """
     costs = get_entity(instance, 'costs')
     cpro = get_entities(instance, ['cap_pro', 'cap_pro_new'])
+    ctra = get_entities(instance, ['cap_tra', 'cap_tra_new'])
+    csto = get_entities(instance, ['cap_sto_c', 'cap_sto_c_new',
+                                   'cap_sto_p', 'cap_sto_p_new'])
 
     # better labels and index names and return sorted
     if not cpro.empty:
         cpro.index.names = ['Stf', 'Site', 'Process']
         cpro.columns = ['Total', 'New']
         cpro.sort_index(inplace=True)
-
-    if instance.mode['tra']:
-        ctra = get_entities(instance, ['cap_tra', 'cap_tra_new'])
+    if not ctra.empty:
         ctra.index.names = (['Stf', 'Site In', 'Site Out',
                              'Transmission', 'Commodity'])
         ctra.columns = ['Total', 'New']
         ctra.sort_index(inplace=True)
-    else:
-        # return empty series
-        ctra = pd.Series()
-    if instance.mode['sto']:
-        csto = get_entities(instance, ['cap_sto_c', 'cap_sto_c_new',
-                                   'cap_sto_p', 'cap_sto_p_new'])
+    if not csto.empty:
         csto.index.names = ['Stf', 'Site', 'Storage', 'Commodity']
         csto.columns = ['C Total', 'C New', 'P Total', 'P New']
         csto.sort_index(inplace=True)
-    else:
-        # return empty series
-        csto = pd.Series()
 
     return costs, cpro, ctra, csto
 
@@ -141,7 +134,7 @@ def get_timeseries(instance, stf, com, sites, timesteps=None):
                    .xs(stf, level='support_timeframe').index.difference(sites))
 
     # if commodity is transportable
-    if instance.mode['tra']:
+    try:
         df_transmission = get_input(instance, 'transmission')
         if com in set(df_transmission.index.get_level_values('Commodity')):
             imported = get_entity(instance, 'e_tra_out')
@@ -172,74 +165,61 @@ def get_timeseries(instance, stf, com, sites, timesteps=None):
         # to be discussed: increase demand by internal transmission losses
         internal_transmission_losses = internal_export - internal_import
         demand = demand + internal_transmission_losses
-    else:
+    except KeyError:
         # imported and exported are empty
         imported = exported = pd.DataFrame(index=timesteps)
     
-
     # STORAGE
     # group storage energies by commodity
     # select all entries with desired commodity co
-    if instance.mode['sto']:
-        stored = get_entities(instance, ['e_sto_con', 'e_sto_in', 'e_sto_out'])
-        try:
-            stored = stored.loc[timesteps].xs([stf, com], level=['stf', 'com'])
-            stored = stored.groupby(level=['t', 'sit']).sum()
-            stored = stored.loc[(slice(None), sites), :].sum(level='t')
-            stored.columns = ['Level', 'Stored', 'Retrieved']
-        except (KeyError, ValueError):
-            stored = pd.DataFrame(0, index=timesteps,
-                                columns=['Level', 'Stored', 'Retrieved'])
-    else:
-        # stored is empty
+    stored = get_entities(instance, ['e_sto_con', 'e_sto_in', 'e_sto_out'])
+    try:
+        stored = stored.loc[timesteps].xs([stf, com], level=['stf', 'com'])
+        stored = stored.groupby(level=['t', 'sit']).sum()
+        stored = stored.loc[(slice(None), sites), :].sum(level='t')
+        stored.columns = ['Level', 'Stored', 'Retrieved']
+    except (KeyError, ValueError):
         stored = pd.DataFrame(0, index=timesteps,
-                                columns=['Level', 'Stored', 'Retrieved'])
+                            columns=['Level', 'Stored', 'Retrieved'])
 
     # DEMAND SIDE MANAGEMENT (load shifting)
-    if instance.mode['dsm']:
-        dsmup = get_entity(instance, 'dsm_up')
-        dsmdo = get_entity(instance, 'dsm_down')
+    dsmup = get_entity(instance, 'dsm_up')
+    dsmdo = get_entity(instance, 'dsm_down')
 
-        if dsmup.empty:
-            # if no DSM happened, the demand is not modified (delta = 0)
+    if dsmup.empty:
+        # if no DSM happened, the demand is not modified (delta = 0)
+        delta = pd.Series(0, index=timesteps)
+
+    else:
+        # DSM happened (dsmup implies that dsmdo must be non-zero, too)
+        # so the demand will be modified by the difference of DSM up and
+        # DSM down uses
+        # for sit in m.dsm_site_tuples:
+        try:
+            # select commodity
+            dsmup = dsmup.xs([stf, com], level=['stf', 'com'])
+            dsmdo = dsmdo.xs([stf, com], level=['stf', 'com'])
+
+            # select sites
+            dsmup = dsmup.unstack()[sites].sum(axis=1)
+            dsmdo = dsmdo.unstack()[sites].sum(axis=1)
+
+            # convert dsmdo to Series by summing over the first time level
+            dsmdo = dsmdo.unstack().sum(axis=0)
+            dsmdo.index.names = ['t']
+
+            # derive secondary timeseries
+            delta = dsmup - dsmdo
+        except KeyError:
             delta = pd.Series(0, index=timesteps)
 
-        else:
-            # DSM happened (dsmup implies that dsmdo must be non-zero, too)
-            # so the demand will be modified by the difference of DSM up and
-            # DSM down uses
-            # for sit in m.dsm_site_tuples:
-            try:
-                # select commodity
-                dsmup = dsmup.xs([stf, com], level=['stf', 'com'])
-                dsmdo = dsmdo.xs([stf, com], level=['stf', 'com'])
+    shifted = demand + delta
 
-                # select sites
-                dsmup = dsmup.unstack()[sites].sum(axis=1)
-                dsmdo = dsmdo.unstack()[sites].sum(axis=1)
+    shifted.name = 'Shifted'
+    demand.name = 'Unshifted'
+    delta.name = 'Delta'
 
-                # convert dsmdo to Series by summing over the first time level
-                dsmdo = dsmdo.unstack().sum(axis=0)
-                dsmdo.index.names = ['t']
-
-                # derive secondary timeseries
-                delta = dsmup - dsmdo
-            except KeyError:
-                delta = pd.Series(0, index=timesteps)
-
-        shifted = demand + delta
-
-        shifted.name = 'Shifted'
-        demand.name = 'Unshifted'
-        delta.name = 'Delta'
-
-        dsm = pd.concat((shifted, demand, delta), axis=1)
-    else:
-        # no delta
-        shifted = demand
-        # return empty DataFrame
-        dsm = pd.DataFrame(0, index=timesteps,
-                                columns=['shifted', 'demand', 'delta'])
+    dsm = pd.concat((shifted, demand, delta), axis=1)
 
     # JOINS
     created = created.join(stock)  # show stock as created

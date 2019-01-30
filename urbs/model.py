@@ -1,12 +1,11 @@
 import math
 import pyomo.core as pyomo
 from datetime import datetime
-from .features.modelhelper import *
-from .input import *
 from .features import *
+from .input import *
 
 
-def create_model(data, mode, dt=1, timesteps=None, objective = 'cost', 
+def create_model(data, dt=1, timesteps=None, objective='cost',
                  dual=False):
     """Create a pyomo ConcreteModel urbs object from given input data.
 
@@ -24,7 +23,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
     # Optional
     if not timesteps:
         timesteps = data['demand'].index.tolist()
-    m = pyomo_model_prep(data, mode, timesteps)  # preparing pyomo model
+    m = pyomo_model_prep(data, timesteps)  # preparing pyomo model
     m.name = 'urbs'
     m.created = datetime.now().strftime('%Y%m%dT%H%M')
     m._data = data
@@ -47,7 +46,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         initialize=dt,
         doc='Time step duration (in hours), default: 1')
 
-    
     # import objective function information
     m.obj = pyomo.Param(
         initialize=objective,
@@ -68,7 +66,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
 
     # modelled (i.e. excluding init time step for storage) time steps
     m.tm = pyomo.Set(
-        within = m.t,
+        within=m.t,
         initialize=m.timesteps[1:],
         ordered=True,
         doc='Set of modelled timesteps')
@@ -78,7 +76,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
     for key in m.commodity_dict["price"]:
         indexlist.add(tuple(key)[0])
     m.stf = pyomo.Set(
-        initialize= indexlist,
+        initialize=indexlist,
         doc='Set of modeled support timeframes (e.g. years)')
 
     # site (e.g. north, middle, south...)
@@ -115,8 +113,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
 
     # cost_type
     m.cost_type = pyomo.Set(
-        initialize=['Invest', 'Fixed', 'Variable', 'Fuel', 'Revenue',
-                    'Purchase', 'Environmental'],
+        initialize= m.cost_type_list,
         doc='Set of cost types (hard-coded)')
 
     # tuple sets
@@ -155,7 +152,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
                         for (sit, pro, stf)
                         in inst_pro_tuples(m)],
             doc='Installed processes that are still operational through stf')
-
 
     # commodity type subsets
     m.com_supim = pyomo.Set(
@@ -216,7 +212,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         initialize=[(stf, site, process, commodity)
                     for (stf, site, process) in m.pro_partial_tuples
                     for (s, pro, commodity) in tuple(m.r_in_min_fraction_dict
-                                                  .keys())
+                                                     .keys())
                     if process == pro and s == stf],
         doc='Commodities with partial input ratio,'
             'e.g. (2020,Mid,Coal PP,Coal)')
@@ -226,10 +222,10 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         initialize=[(stf, site, process, commodity)
                     for (stf, site, process) in m.pro_partial_tuples
                     for (s, pro, commodity) in tuple(m.r_out_min_fraction_dict
-                                                  .keys())
+                                                     .keys())
                     if process == pro and s == stf],
         doc='Commodities with partial input ratio, e.g. (Mid,Coal PP,CO2)')
-        
+
     # Variables
 
     # costs
@@ -237,7 +233,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         m.cost_type,
         within=pyomo.Reals,
         doc='Costs by type (EUR/a)')
-    
+
     # commodity
     m.e_co_stock = pyomo.Var(
         m.tm, m.com_tuples,
@@ -245,14 +241,18 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         doc='Use of stock commodity source (MW) per timestep')
 
     # process
-    m.cap_pro = pyomo.Var(
-        m.pro_tuples,
-        within=pyomo.NonNegativeReals,
-        doc='Total process capacity (MW)')
     m.cap_pro_new = pyomo.Var(
         m.pro_tuples,
         within=pyomo.NonNegativeReals,
         doc='New process capacity (MW)')
+
+    # process capacity as expression object
+    # (variable if expansion is possible, else static)
+    m.cap_pro = pyomo.Expression(
+        m.pro_tuples, 
+        rule=def_process_capacity_rule,
+        doc='total process capacity')
+
     m.tau_pro = pyomo.Var(
         m.t, m.pro_tuples,
         within=pyomo.NonNegativeReals,
@@ -265,9 +265,9 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         m.tm, m.pro_tuples, m.com,
         within=pyomo.NonNegativeReals,
         doc='Power flow out of process (MW) per timestep')
-   
+
     # Add additional features
-    # called features are declared in distinct file in features folder
+    # called features are declared in distinct files in features folder
     if m.mode['tra']:
         m = add_transmission(m)
     if m.mode['sto']:
@@ -306,16 +306,6 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         doc='total environmental commodity output <= commodity.max')
 
     # process
-    if m.mode['int']:
-        m.def_int_process_capacity = pyomo.Constraint(
-            m.pro_tuples,
-            rule=def_int_process_capacity_rule,
-            doc='total process capacity = inst-cap + new capacity')
-    else:
-        m.def_process_capacity = pyomo.Constraint(
-            m.pro_tuples,
-            rule=def_process_capacity_rule,
-            doc='total process capacity = inst-cap + new capacity')
     m.def_process_input = pyomo.Constraint(
         m.tm, m.pro_input_tuples - m.pro_partial_input_tuples,
         rule=def_process_input_rule,
@@ -323,7 +313,7 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
     if m.mode['tve']:
         m.def_process_output = pyomo.Constraint(
             m.tm, (m.pro_output_tuples - m.pro_partial_output_tuples -
-                m.pro_timevar_output_tuples),
+                   m.pro_timevar_output_tuples),
             rule=def_process_output_rule,
             doc='process output = process throughput * output ratio')
     else:
@@ -369,8 +359,9 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
             ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')
     if m.mode['tve']:
         m.def_partial_process_output = pyomo.Constraint(
-            m.tm, (m.pro_partial_output_tuples -
-                (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
+            m.tm,
+            (m.pro_partial_output_tuples -
+             (m.pro_partial_output_tuples & m.pro_timevar_output_tuples)),
             rule=def_partial_process_output_rule,
             doc='e_pro_out = '
                 ' cap_pro * min_fraction * (r - R) / (1 - min_fraction)'
@@ -381,8 +372,8 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
             rule=def_partial_process_output_rule,
             doc='e_pro_out = '
                 ' cap_pro * min_fraction * (r - R) / (1 - min_fraction)'
-                ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')        
-    
+                ' + tau_pro * (R - min_fraction * r) / (1 - min_fraction)')
+
     if m.mode['int']:
         m.res_global_co2_limit = pyomo.Constraint(
             m.stf,
@@ -401,8 +392,8 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
         if m.mode['int']:
             m.res_global_co2_budget = pyomo.Constraint(
                 rule=res_global_co2_budget_rule,
-                doc='total co2 commodity output <= global.prop CO2 budget')           
-        else: 
+                doc='total co2 commodity output <= global.prop CO2 budget')
+        else:
             m.res_global_co2_limit = pyomo.Constraint(
                 m.stf,
                 rule=res_global_co2_limit_rule,
@@ -432,9 +423,8 @@ def create_model(data, mode, dt=1, timesteps=None, objective = 'cost',
 
     if dual:
         m.dual = pyomo.Suffix(direction=pyomo.Suffix.IMPORT)
-    
+
     return m
-    
 
 
 # Constraints
@@ -464,7 +454,7 @@ def res_vertex_rule(m, tm, stf, sit, com, com_type):
     # can supply a possibly negative power_surplus
     if com in m.com_stock:
         power_surplus += m.e_co_stock[tm, stf, sit, com, com_type]
-    
+
     # if Buy and sell prices are enabled
     if m.mode['bsp']:
         power_surplus += bsp_surplus(m, tm, stf, sit, com, com_type)
@@ -539,30 +529,34 @@ def res_env_total_rule(m, stf, sit, com, com_type):
         return (env_output_sum <=
                 m.commodity_dict['max'][(stf, sit, com, com_type)])
 
-                
+
 # process
 
-# process capacity == new capacity + existing capacity
+# process capacity (for m.cap_pro Expression)
 def def_process_capacity_rule(m, stf, sit, pro):
-    return (m.cap_pro[stf, sit, pro] ==
-            m.cap_pro_new[stf, sit, pro] +
-            m.process_dict['inst-cap'][(stf, sit, pro)])
-
-# process capacity for intertemporal planning
-def def_int_process_capacity_rule(m, stf, sit, pro):
-    if (sit, pro, stf) in m.inst_pro_tuples:
-        return (m.cap_pro[stf, sit, pro] ==
-                sum(m.cap_pro_new[stf_built, sit, pro]
+    if m.mode['int']:
+        if (sit, pro, stf) in m.inst_pro_tuples:
+            if (sit, pro, min(m.stf)) in m.pro_const_cap_dict:
+                cap_pro = m.process_dict['inst-cap'][(stf, sit, pro)]
+            else:
+                cap_pro = \
+                (sum(m.cap_pro_new[stf_built, sit, pro]
                 for stf_built in m.stf
                 if (sit, pro, stf_built, stf) in m.operational_pro_tuples) +
                 m.process_dict['inst-cap'][(min(m.stf), sit, pro)])
-    else:
-        return (m.cap_pro[stf, sit, pro] ==
-                sum(m.cap_pro_new[stf_built, sit, pro]
+        else:
+            cap_pro = sum(
+                m.cap_pro_new[stf_built, sit, pro]
                 for stf_built in m.stf
-                if (sit, pro, stf_built, stf) in m.operational_pro_tuples))
-
-
+                if (sit, pro, stf_built, stf) in m.operational_pro_tuples)
+    else:
+        if (sit, pro, stf) in m.pro_const_cap_dict:
+            cap_pro = m.process_dict['inst-cap'][(stf, sit, pro)]
+        else:
+            cap_pro = (m.cap_pro_new[stf, sit, pro] +
+                       m.process_dict['inst-cap'][(stf, sit, pro)])
+    return cap_pro
+        
 # process input power == process throughput * input ratio
 def def_process_input_rule(m, tm, stf, sit, pro, com):
     return (m.e_pro_in[tm, stf, sit, pro, com] ==
@@ -650,7 +644,7 @@ def res_process_capacity_rule(m, stf, sit, pro):
 # used process area <= maximal process area
 def res_area_rule(m, stf, sit):
     if m.site_dict['area'][stf, sit] >= 0 and sum(
-                          m.process_dict['area-per-cap'][st, s, p]
+                         m.process_dict['area-per-cap'][st, s, p]
                          for (st, s, p) in m.pro_area_tuples
                          if s == sit and st == stf) > 0:
         total_area = sum(m.cap_pro[st, s, p] *
@@ -662,7 +656,7 @@ def res_area_rule(m, stf, sit):
         # Skip constraint, if area is not numeric
         return pyomo.Constraint.Skip
 
-            
+
 # total CO2 output <= Global CO2 limit
 def res_global_co2_limit_rule(m, stf):
     if math.isinf(m.global_prop_dict['value'][stf, 'CO2 limit']):
@@ -678,7 +672,8 @@ def res_global_co2_limit_rule(m, stf):
 
         # scaling to annual output (cf. definition of m.weight)
         co2_output_sum *= m.weight
-        return (co2_output_sum <= m.global_prop_dict['value'][stf, 'CO2 limit'])
+        return (co2_output_sum <= m.global_prop_dict['value']
+                                                    [stf, 'CO2 limit'])
     else:
         return pyomo.Constraint.Skip
 
@@ -732,48 +727,23 @@ def def_costs_rule(m, cost_type):
       - Fuel costs for stock commodity purchase.
     """
     if cost_type == 'Invest':
-        
         cost = \
             sum(m.cap_pro_new[p] *
                 m.process_dict['inv-cost'][p] *
                 m.process_dict['invcost-factor'][p]
                 for p in m.pro_tuples)
-        if m.mode['tra']:
-            cost += \
-                sum(m.cap_tra_new[t] *
-                    m.transmission_dict['inv-cost'][t] *
-                    m.transmission_dict['invcost-factor'][t]
-                    for t in m.tra_tuples)
-        if m.mode['sto']:
-            cost += \
-                sum(m.cap_sto_p_new[s] *
-                    m.storage_dict['inv-cost-p'][s] *
-                    m.storage_dict['invcost-factor'][s] +
-                    m.cap_sto_c_new[s] *
-                    m.storage_dict['inv-cost-c'][s] *
-                    m.storage_dict['invcost-factor'][s]
-                    for s in m.sto_tuples)
         if m.mode['int']:
             cost -= \
                 sum(m.cap_pro_new[p] *
                     m.process_dict['inv-cost'][p] *
                     m.process_dict['overpay-factor'][p]
                     for p in m.pro_tuples)
-            if m.mode['tra']:
-                cost -= \
-                    sum(m.cap_tra_new[t] *
-                        m.transmission_dict['inv-cost'][t] *
-                        m.transmission_dict['overpay-factor'][t]
-                        for t in m.tra_tuples)
-            if m.mode['sto']:
-                cost -= \
-                    sum(m.cap_sto_p_new[s] *
-                        m.storage_dict['inv-cost-p'][s] *
-                        m.storage_dict['overpay-factor'][s] +
-                        m.cap_sto_c_new[s] *
-                        m.storage_dict['inv-cost-c'][s] *
-                        m.storage_dict['overpay-factor'][s]
-                        for s in m.sto_tuples)
+        if m.mode['tra']:
+            # transmission_cost is defined in transmission.py
+            cost += transmission_cost(m, cost_type)
+        if m.mode['sto']:
+            # storage_cost is defined in storage.py
+            cost += storage_cost(m, cost_type)
         return m.costs[cost_type] == cost
 
     elif cost_type == 'Fixed':
@@ -782,16 +752,9 @@ def def_costs_rule(m, cost_type):
                 m.process_dict['cost_factor'][p]
                 for p in m.pro_tuples)
         if m.mode['tra']:
-            cost += \
-                sum(m.cap_tra[t] * m.transmission_dict['fix-cost'][t] *
-                    m.transmission_dict['cost_factor'][t]
-                    for t in m.tra_tuples)
+            cost += transmission_cost(m, cost_type)
         if m.mode['sto']:
-            cost += \
-                sum((m.cap_sto_p[s] * m.storage_dict['fix-cost-p'][s] +
-                    m.cap_sto_c[s] * m.storage_dict['fix-cost-c'][s]) *
-                    m.storage_dict['cost_factor'][s]
-                    for s in m.sto_tuples)
+            cost += storage_cost(m, cost_type)
         return m.costs[cost_type] == cost
 
     elif cost_type == 'Variable':
@@ -802,22 +765,9 @@ def def_costs_rule(m, cost_type):
                 for tm in m.tm
                 for p in m.pro_tuples)
         if m.mode['tra']:
-            cost += \
-                sum(m.e_tra_in[(tm,) + t] * m.weight *
-                    m.transmission_dict['var-cost'][t] *
-                    m.transmission_dict['cost_factor'][t]
-                    for tm in m.tm
-                    for t in m.tra_tuples)
+            cost += transmission_cost(m, cost_type)
         if m.mode['sto']:
-            cost += \
-                sum(m.e_sto_con[(tm,) + s] * m.weight *
-                    m.storage_dict['var-cost-c'][s] *
-                    m.storage_dict['cost_factor'][s] +
-                    (m.e_sto_in[(tm,) + s] + m.e_sto_out[(tm,) + s]) *
-                    m.weight * m.storage_dict['var-cost-p'][s] *
-                    m.storage_dict['cost_factor'][s]
-                    for tm in m.tm
-                    for s in m.sto_tuples)
+            cost += storage_cost(m, cost_type)
         return m.costs[cost_type] == cost
 
     elif cost_type == 'Fuel':
@@ -828,44 +778,6 @@ def def_costs_rule(m, cost_type):
             for tm in m.tm for c in m.com_tuples
             if c[2] in m.com_stock)
 
-    elif cost_type == 'Revenue':
-        sell_tuples = commodity_subset(m.com_tuples, m.com_sell)
-        try:
-            return m.costs[cost_type] == -sum(
-                m.e_co_sell[(tm,) + c] *
-                m.buy_sell_price_dict[c[2]][(c[0], tm)] * m.weight *
-                m.commodity_dict['price'][c] *
-                m.commodity_dict['cost_factor'][c]
-                for tm in m.tm
-                for c in sell_tuples)
-        except KeyError:
-            return m.costs[cost_type] == -sum(
-                m.e_co_sell[(tm,) + c] *
-                m.buy_sell_price_dict[c[2], ][(c[0], tm)] * m.weight *
-                m.commodity_dict['price'][c] *
-                m.commodity_dict['cost_factor'][c]
-                for tm in m.tm
-                for c in sell_tuples)
-
-    elif cost_type == 'Purchase':
-        buy_tuples = commodity_subset(m.com_tuples, m.com_buy)
-        try:
-            return m.costs[cost_type] == sum(
-                m.e_co_buy[(tm,) + c] *
-                m.buy_sell_price_dict[c[2]][(c[0], tm)] * m.weight *
-                m.commodity_dict['price'][c] *
-                m.commodity_dict['cost_factor'][c]
-                for tm in m.tm
-                for c in buy_tuples)
-        except KeyError:
-            return m.costs[cost_type] == sum(
-                m.e_co_buy[(tm,) + c] *
-                m.buy_sell_price_dict[c[2], ][(c[0], tm)] * m.weight *
-                m.commodity_dict['price'][c] *
-                m.commodity_dict['cost_factor'][c]
-                for tm in m.tm
-                for c in buy_tuples)
-
     elif cost_type == 'Environmental':
         return m.costs[cost_type] == sum(
             - commodity_balance(m, tm, stf, sit, com) * m.weight *
@@ -874,6 +786,13 @@ def def_costs_rule(m, cost_type):
             for tm in m.tm
             for stf, sit, com, com_type in m.com_tuples
             if com in m.com_env)
+
+    # Revenue and Purchase costs defined in BuySellPrice.py
+    elif cost_type == 'Revenue':
+        return m.costs[cost_type] == revenue_costs(m)
+
+    elif cost_type == 'Purchase':
+        return m.costs[cost_type] == purchase_costs(m)
 
     else:
         raise NotImplementedError("Unknown cost type.")
@@ -897,4 +816,3 @@ def co2_rule(m):
                                    stf_dist(stf, m))
 
     return (co2_output_sum)
-
