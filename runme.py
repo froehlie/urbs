@@ -42,7 +42,6 @@ dt = 1  # length of each time step (unit: hours)
 #     (year, ['North', 'Mid', 'South'], 'Elec')]
 
 # # optional: define names for sites in plot_tuples
-
 # plot_sites_name = {('North', 'Mid', 'South'): 'All'}
 
 # # detailed reporting commodity/sites
