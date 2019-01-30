@@ -18,8 +18,11 @@ def get_entity(instance, name):
         return instance._result[name].copy(deep=True)
 
     # retrieve entity, its type and its onset names
-    entity = instance.__getattribute__(name)
-    labels = _get_onset_names(entity)
+    try:
+        entity = instance.__getattribute__(name)
+        labels = _get_onset_names(entity)
+    except AttributeError:
+        return pd.Series(name=name)
 
     # extract values
     if isinstance(entity, pyomo.Set):

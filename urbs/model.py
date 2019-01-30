@@ -557,29 +557,6 @@ def def_process_capacity_rule(m, stf, sit, pro):
                        m.process_dict['inst-cap'][(stf, sit, pro)])
     return cap_pro
         
-# # process capacity (for m.cap_pro Expression)
-# def def_process_capacity_rule(m, stf, sit, pro):
-#     # if no expansion possible
-#     if (min(m.stf), sit, pro) in m.const_pro_dict:
-#         cap_pro = m.const_pro_dict[(min(m.stf), sit, pro)]
-#     else:
-#         if m.mode['int']:
-#             if (sit, pro, stf) in m.inst_pro_tuples:
-#                 cap_pro = \
-#                 (sum(m.cap_pro_new[stf_built, sit, pro]
-#                 for stf_built in m.stf
-#                 if (sit, pro, stf_built, stf) in m.operational_pro_tuples) +
-#                 m.process_dict['inst-cap'][(min(m.stf), sit, pro)])
-#             else:
-#                 cap_pro = sum(
-#                     m.cap_pro_new[stf_built, sit, pro]
-#                     for stf_built in m.stf
-#                     if (sit, pro, stf_built, stf) in m.operational_pro_tuples)
-#         else:
-#             cap_pro = (m.cap_pro_new[stf, sit, pro] +
-#                         m.process_dict['inst-cap'][(stf, sit, pro)])
-#     return cap_pro
-        
 # process input power == process throughput * input ratio
 def def_process_input_rule(m, tm, stf, sit, pro, com):
     return (m.e_pro_in[tm, stf, sit, pro, com] ==
